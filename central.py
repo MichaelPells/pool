@@ -11,7 +11,7 @@ class Network:
 
         self.app(self)
 
-    def run(self, input):
+    def do(self, input=None):
         self.inputs.append(input)
 
     def addstage(self, status, stage):
@@ -20,24 +20,28 @@ class Network:
 
         self.stages[status].append(stage)
 
-    def start(self):
-        self.running = True
-
-        threading.Thread(target=self.run)
-
     def run(self):
         while self.running:
             if len(self.inputs) > 0:
                 status = self.inputs[0]["status"] if "status" in self.inputs[0] else "entrypoint"
                 input = self.inputs[0]["input"] if "input" in self.inputs[0] else None
-                self.stages[status](input)
+
+                for stage in self.stages[status]:
+                    stage(input)
+
+                self.inputs.pop(0)
+
+    def start(self):
+        self.running = True
+
+        threading.Thread(target=self.run).start()
 
     def stop(self):
             self.running = False
 
 
 def app(network):
-    def main():
+    def main(_):
         pool = Pool()
         pool.start()
 
@@ -47,11 +51,16 @@ def app(network):
         def blocker():
             for i in range(10000): pass
 
-            # report status 'after-looper' to `network`
+            network.do({
+                "status": "after-looper",
+                "input": "Looper Finished"
+            })
         pool.assign(blocker)
 
         def post_looper_result(result):
             print(result)
+            network.stop() # Just for safety
+            pool.stop() # Just for safety
         network.addstage("after-looper", post_looper_result)
 
         i += 5
@@ -66,3 +75,5 @@ def app(network):
 
 project = Network(app)
 project.start()
+
+project.do({})
