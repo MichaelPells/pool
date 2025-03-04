@@ -2,8 +2,9 @@ from pool import Pool, Task
 import threading
 
 class Instance:
-    def __init__(self, instance_id):
+    def __init__(self, instance_id, network):
         self.instance_id = instance_id
+        self.network = network
 
         self.stages = {}
 
@@ -16,9 +17,21 @@ class Instance:
 
         self.stages[status].extend(stages)
 
+    def node(self, task, status):
+        self.network.pool.assign(target=self.network.do, kwargs={
+            "input": {
+                "instance": self.instance_id,
+                "status": status,
+                "input": task()
+            }
+        })
+
+
 class Network:
     def __init__(self, app):
         self.app = app
+
+        self.pool = Pool()
 
         self.inputs = []
         self.defaultstages = []
@@ -42,7 +55,7 @@ class Network:
 
                 if "instance" not in self.inputs[0]:
                     instance_id += 1
-                    instance = self.instances[instance_id] = Instance(instance_id)
+                    instance = self.instances[instance_id] = Instance(instance_id, self)
 
                     instance.addstages(status, self.defaultstages)
 
@@ -50,55 +63,66 @@ class Network:
                     instance_id = self.inputs[0]["instance"]
                     instance = self.instances[instance_id]
 
-                input = self.inputs[0]["input"] if "input" in self.inputs[0] else None
+                input = self.inputs[0]["input"] if "input" in self.inputs[0] else ()
+                input_type = type(input)
 
                 if status == "entrypoint":
-                    for stage in instance.stages[status]:
-                        stage(instance, input)
+                    if input_type == tuple or input_type == list:
+                        for stage in instance.stages[status]:
+                            stage(instance, *input)
+
+                    elif input_type == dict:
+                        for stage in instance.stages[status]:
+                            stage(instance, **input)
+
+                    else:
+                        raise TypeError("Blah Blah")
 
                 else:
-                    for stage in instance.stages[status]:
-                        stage(input)
+                    if input_type == tuple or input_type == list:
+                        for stage in instance.stages[status]:
+                            stage(*input)
+
+                    elif input_type == dict:
+                        for stage in instance.stages[status]:
+                            stage(**input)
+
+                    else:
+                        raise TypeError("Blah Blah")
 
                 self.inputs.pop(0)
 
     def start(self):
         self.running = True
+        self.pool.start()
 
         threading.Thread(target=self.run).start()
 
     def stop(self):
             self.running = False
+            self.pool.stop()
 
 
 def app(network):
-    def main(instance, _):
-        pool = Pool()
-        pool.start()
-
+    def main(instance):
         for i in range(5):
             print(i)
 
         def blocker():
             for i in range(10000): pass
 
-            network.do({
-                "instance": instance.instance_id,
-                "status": "after-looper",
-                "input": "Looper Finished"
-            })
-        pool.assign(blocker)
+            return ("Looper Finished",)
+        instance.node(blocker, "after-looper")
 
         def post_looper_result(result):
             print(result)
             network.stop() # Just for safety
-            pool.stop() # Just for safety
         instance.addstage("after-looper", post_looper_result)
 
         i += 5
         print(i)
 
-    def complete(instance, _):
+    def complete(instance):
         print("completed")
 
     network.adddefaultstage(main)
