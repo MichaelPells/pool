@@ -1,33 +1,64 @@
 from pool import Pool, Task
 import threading
 
+class Instance:
+    def __init__(self, instance_id):
+        self.instance_id = instance_id
+
+        self.stages = {}
+
+    def addstage(self, status, stage):
+        self.addstages(status, [stage])
+
+    def addstages(self, status, stages=[]):
+        if status not in self.stages:
+            self.stages[status] = []
+
+        self.stages[status].extend(stages)
+
 class Network:
     def __init__(self, app):
         self.app = app
 
         self.inputs = []
-        self.stages = {}
+        self.defaultstages = []
+        self.instances = {}
         self.running = False
 
         self.app(self)
 
-    def do(self, input=None):
+    def do(self, input={}):
         self.inputs.append(input)
 
-    def addstage(self, status, stage):
-        if status not in self.stages:
-            self.stages[status] = []
-
-        self.stages[status].append(stage)
+    def adddefaultstage(self, stage):
+        self.defaultstages.append(stage)
 
     def run(self):
+        instance_id = 0
+
         while self.running:
             if len(self.inputs) > 0:
                 status = self.inputs[0]["status"] if "status" in self.inputs[0] else "entrypoint"
+
+                if "instance" not in self.inputs[0]:
+                    instance_id += 1
+                    instance = self.instances[instance_id] = Instance(instance_id)
+
+                    instance.addstages(status, self.defaultstages)
+
+                else:
+                    instance_id = self.inputs[0]["instance"]
+                    instance = self.instances[instance_id]
+
                 input = self.inputs[0]["input"] if "input" in self.inputs[0] else None
 
-                for stage in self.stages[status]:
-                    stage(input)
+                if status == "entrypoint":
+                    for stage in instance.stages[status]:
+                        stage(instance, input)
+
+                else:
+                    for stage in instance.stages[status]:
+                        stage(input)
 
                 self.inputs.pop(0)
 
@@ -41,7 +72,7 @@ class Network:
 
 
 def app(network):
-    def main(_):
+    def main(instance, _):
         pool = Pool()
         pool.start()
 
@@ -52,6 +83,7 @@ def app(network):
             for i in range(10000): pass
 
             network.do({
+                "instance": instance.instance_id,
                 "status": "after-looper",
                 "input": "Looper Finished"
             })
@@ -61,19 +93,19 @@ def app(network):
             print(result)
             network.stop() # Just for safety
             pool.stop() # Just for safety
-        network.addstage("after-looper", post_looper_result)
+        instance.addstage("after-looper", post_looper_result)
 
         i += 5
         print(i)
 
-    def complete():
+    def complete(instance, _):
         print("completed")
 
-    network.addstage("entrypoint", main)
-    network.addstage("exit", complete)
+    network.adddefaultstage(main)
+    network.adddefaultstage(complete)
 
 
 project = Network(app)
 project.start()
 
-project.do({})
+project.do()
