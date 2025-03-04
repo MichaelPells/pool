@@ -7,6 +7,7 @@ class Instance:
         self.network = network
 
         self.stages = {}
+        self.indexedstatuses = 0
 
     def addstage(self, status, stage):
         self.addstages(status, [stage])
@@ -17,7 +18,14 @@ class Instance:
 
         self.stages[status].extend(stages)
 
-    def node(self, task, status):
+    def node(self, task, next):
+        if type(next) != list:
+            status = next
+        else:
+            self.indexedstatuses += 1
+            status = self.indexedstatuses
+            self.addstages(status, next)
+
         self.network.pool.assign(target=self.network.do, kwargs={
             "input": {
                 "instance": self.instance_id,
@@ -45,6 +53,9 @@ class Network:
 
     def adddefaultstage(self, stage):
         self.defaultstages.append(stage)
+
+    def adddefaultstages(self, stages=[]):
+        self.defaultstages.extend(stages)
 
     def run(self):
         instance_id = 0
@@ -110,14 +121,13 @@ def app(network):
 
         def blocker():
             for i in range(10000): pass
-
             return ("Looper Finished",)
-        instance.node(blocker, "after-looper")
 
         def post_looper_result(result):
             print(result)
             network.stop() # Just for safety
-        instance.addstage("after-looper", post_looper_result)
+
+        instance.node(blocker, [post_looper_result])
 
         i += 5
         print(i)
@@ -125,9 +135,7 @@ def app(network):
     def complete(instance):
         print("completed")
 
-    network.adddefaultstage(main)
-    network.adddefaultstage(complete)
-
+    network.adddefaultstages([main, complete])
 
 project = Network(app)
 project.start()
