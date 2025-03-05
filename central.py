@@ -1,39 +1,6 @@
 from pool import Pool, Task
 import threading
 
-class Instance:
-    def __init__(self, instance_id, network):
-        self.instance_id = instance_id
-        self.network = network
-
-        self.stages = {}
-        self.indexedstatuses = 0
-
-    def addstage(self, status, stage):
-        self.addstages(status, [stage])
-
-    def addstages(self, status, stages=[]):
-        if status not in self.stages:
-            self.stages[status] = []
-
-        self.stages[status].extend(stages)
-
-    def node(self, task, next):
-        if type(next) != list:
-            status = next
-        else:
-            self.indexedstatuses += 1
-            status = self.indexedstatuses
-            self.addstages(status, next)
-
-        self.network.pool.assign(target=self.network.do, kwargs={
-            "input": {
-                "instance": self.instance_id,
-                "status": status,
-                "input": task()
-            }
-        })
-
 
 class Network:
     def __init__(self, app):
@@ -114,8 +81,44 @@ class Network:
             self.pool.stop()
 
 
-def app(network):
-    def main(instance):
+class Instance:
+    def __init__(self, instance_id, network: Network):
+        self.instance_id = instance_id
+        self.network = network
+
+        self.stages = {}
+        self.indexedstatuses = 0
+
+    def addstage(self, status, stage):
+        self.addstages(status, [stage])
+
+    def addstages(self, status, stages=[]):
+        if status not in self.stages:
+            self.stages[status] = []
+
+        self.stages[status].extend(stages)
+
+    def node(self, task, next):
+        if type(next) != list:
+            status = next
+        else:
+            self.indexedstatuses += 1
+            status = self.indexedstatuses
+            self.addstages(status, next)
+
+        self.network.pool.assign(target=self.network.do, kwargs={
+            "input": {
+                "instance": self.instance_id,
+                "status": status,
+                "input": task()
+            }
+        })
+
+        return status
+
+
+def app(network: Network):
+    def main(instance: Instance):
         for i in range(5):
             print(i)
 
@@ -132,7 +135,7 @@ def app(network):
         i += 5
         print(i)
 
-    def complete(instance):
+    def complete(instance: Instance):
         print("completed")
 
     network.adddefaultstages([main, complete])
