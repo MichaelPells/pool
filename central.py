@@ -7,6 +7,8 @@ class Network:
         self.app = app
 
         self.pool = Pool()
+        self.sleeper = threading.Lock()
+        self.ready = True
 
         self.inputs = []
         self.defaultstages = []
@@ -16,7 +18,12 @@ class Network:
         self.app(self)
 
     def do(self, input={}):
+        while not self.ready: pass
         self.inputs.append(input)
+
+        try:
+            self.sleeper.release()
+        except: pass
 
     def adddefaultstage(self, stage):
         self.defaultstages.append(stage)
@@ -28,47 +35,59 @@ class Network:
         instance_id = 0
 
         while self.running:
-            if len(self.inputs) > 0:
-                status = self.inputs[0]["status"] if "status" in self.inputs[0] else "entrypoint"
+            try:
+                INPUT = self.inputs.pop(0)
+            except IndexError:
+                self.ready = False
+                try:
+                    INPUT = self.inputs.pop(0)
+                except IndexError:
+                    self.sleeper.acquire()
+                    self.ready = True
+                    self.sleeper.acquire()
+                    INPUT = self.inputs.pop(0)
+                    try:
+                        self.sleeper.release()
+                    except: pass
 
-                if "instance" not in self.inputs[0]:
-                    instance_id += 1
-                    instance = self.instances[instance_id] = Instance(instance_id, self)
+            status = INPUT["status"] if "status" in INPUT else "entrypoint"
 
-                    instance.addstages(self.defaultstages, status)
+            if "instance" not in INPUT:
+                instance_id += 1
+                instance = self.instances[instance_id] = Instance(instance_id, self)
+
+                instance.addstages(self.defaultstages, status)
+
+            else:
+                instance_id = INPUT["instance"]
+                instance = self.instances[instance_id]
+
+            input = INPUT["input"] if "input" in INPUT else ()
+            input_type = type(input)
+
+            if status == "entrypoint":
+                if input_type == tuple or input_type == list:
+                    for stage in instance.stages[status]:
+                        stage(instance, *input)
+
+                elif input_type == dict:
+                    for stage in instance.stages[status]:
+                        stage(instance, **input)
 
                 else:
-                    instance_id = self.inputs[0]["instance"]
-                    instance = self.instances[instance_id]
+                    raise TypeError("Blah Blah")
 
-                input = self.inputs[0]["input"] if "input" in self.inputs[0] else ()
-                input_type = type(input)
+            else:
+                if input_type == tuple or input_type == list:
+                    for stage in instance.stages[status]:
+                        stage(*input)
 
-                if status == "entrypoint":
-                    if input_type == tuple or input_type == list:
-                        for stage in instance.stages[status]:
-                            stage(instance, *input)
-
-                    elif input_type == dict:
-                        for stage in instance.stages[status]:
-                            stage(instance, **input)
-
-                    else:
-                        raise TypeError("Blah Blah")
+                elif input_type == dict:
+                    for stage in instance.stages[status]:
+                        stage(**input)
 
                 else:
-                    if input_type == tuple or input_type == list:
-                        for stage in instance.stages[status]:
-                            stage(*input)
-
-                    elif input_type == dict:
-                        for stage in instance.stages[status]:
-                            stage(**input)
-
-                    else:
-                        raise TypeError("Blah Blah")
-
-                self.inputs.pop(0)
+                    raise TypeError("Blah Blah")
 
     def start(self):
         self.running = True
