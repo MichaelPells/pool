@@ -172,7 +172,7 @@ class Worker(threading.Thread):
             log(f'{self.id} lock: {locked}')
 
             # Handle timeout.
-            if locked == False:
+            if not locked:
                 # Probe the worker
                 self.timed_out = True # First suspend the worker
                 if not self.task: # Be sure a task has not been assigned between timeout expire and worker suspension.
@@ -238,6 +238,7 @@ class Task:
         with self.lock:
             return self.result
 
+    # We wanted to implement an in-process communication between task and caller.
 
 def log(msg):
     if __name__ == "__main__":

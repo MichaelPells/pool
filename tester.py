@@ -11,5 +11,6 @@ def sleeper():
     return "Done"
 
 task = Task(sleeper)
-multiprocessing.Process(target=task).start()
+threading.Thread(target=task).start()
+# multiprocessing.Process(target=task).start()
 print(task.getresult())
