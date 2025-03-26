@@ -224,6 +224,7 @@ class Task:
 
         self.started = False
         self.completed = False
+        self.status = "pending"
         self.lock = threading.Lock()
         self.lock.acquire()
     
@@ -231,8 +232,7 @@ class Task:
         self.started = True
         self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         self.completed = True
-        self.lock.release()
-
+        self.lock.release()        
 
     def getresult(self):
         with self.lock:
