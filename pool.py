@@ -212,8 +212,9 @@ class Worker(threading.Thread):
 
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=None):
+    def __init__(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
         self.action = target
+        self.interactive = interactive
 
         self.parameters = {
             "args": args,
@@ -230,9 +231,23 @@ class Task:
     
     def __call__(self):
         self.started = True
-        self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
+        self.setstatus("started")
+
+        if self.interactive:
+            self.result = self.action(self, *self.parameters["args"], **self.parameters["kwargs"])
+        else:
+            self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
+
         self.completed = True
-        self.lock.release()        
+        self.setstatus("completed")
+        self.lock.release()
+
+    def interact(self):
+        self.interactive = True
+
+    def setstatus(self, status):
+        self.status = status
+        # Trigger status change events, if any.
 
     def getresult(self):
         with self.lock:
@@ -271,89 +286,95 @@ if __name__ == "__main__":
     print(pool.workers)
     print(pool.idle)
 
-    pool.assign(sleeper, [25])
+    # pool.assign(sleeper, [25])
     
-    pool.assign(sleeper, [20])
+    # pool.assign(sleeper, [20])
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
-    pool.assign(printer)
+    # pool.assign(printer)
     
 
-    time.sleep(10)
-    pool.stop()
+    # time.sleep(10)
+    # pool.stop()
 
-    time.sleep(25)
-    print(pool.workers)
+    # time.sleep(25)
+    # print(pool.workers)
+
+    def test(task : Task):
+        task.setstatus("running")
+        print(task.status)
+
+    pool.assign(Task(test, interactive=True))
