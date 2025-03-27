@@ -237,7 +237,6 @@ class Task:
         self.lock.acquire()
     
     def __call__(self):
-        self.started = True
         self.setstatus("started")
 
         if self.interactive:
@@ -245,7 +244,6 @@ class Task:
         else:
             self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
 
-        self.completed = True
         self.setstatus("completed")
         self.lock.release()
 
@@ -255,7 +253,15 @@ class Task:
 
     def setstatus(self, status):
         self.status = status
-        self.trigger("statuschange", status)
+
+        if status == "started":
+            self.started = True
+            self.emit("started")
+        elif status == "completed":
+            self.completed = True
+            self.emit("completed")
+
+        self.emit("statuschange", status)
 
     def once(self, event, action):
         if event not in self.listeners["once"]:
@@ -267,7 +273,7 @@ class Task:
             self.listeners["on"][event] = []
         self.listeners["on"][event].append(action)
 
-    def trigger(self, event, *args):
+    def emit(self, event, *args):
         if event in self.listeners["once"]:
             for action in self.listeners["once"][event]:
                 action(*args)
@@ -402,14 +408,17 @@ if __name__ == "__main__":
     # print(pool.workers)
 
     def test(task : Task):
+        print(task.status)
         task.setstatus("running")
         task.setstatus("finishing")
         print(task.status)
 
-    def statuser(status):
+    def statuser(status="Yessssssss"):
         print("Status Changed:", status)
 
     task = Task(test, interactive=True)
     task.on("statuschange", statuser)
+    task.on("started", statuser)
+    task.on("completed", statuser)
 
     pool.assign(task)
