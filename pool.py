@@ -8,7 +8,7 @@ MAX_WORKERS = 1000
 
 def ERROR_HANDLER(error, target, *args, **kwargs):
     sys.stderr.write(f'''An error occurred while handling a task.
-Task: {target.__name__()}(*{args}, **{kwargs})
+Task: {target.action.__name__}(*{args}, **{kwargs})
 Exception: {error}
 
 ''')
@@ -97,10 +97,10 @@ class Pool:
                         log(f'{id} killed')
     
     # This function assumes it is being run synchronously, and that no more than one instance of it runs at a time.
-    def assign(self, target, args=(), kwargs={}, error_handler=None):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
         if self.working:
             if not isinstance(target, Task):
-                task = Task(target, args, kwargs, error_handler or self.error_handler) # Create a Task object
+                task = Task(target, args, kwargs, error_handler or self.error_handler, interactive) # Create a Task object
             else:
                 task = target
             # Looking for an available worker
@@ -161,7 +161,7 @@ class Worker(threading.Thread):
         self.id = id
 
         self.new = True
-        self.task = None
+        self.task: Task = None
         self.lock = threading.Lock()
         self.timed_out = False
 
@@ -212,15 +212,22 @@ class Worker(threading.Thread):
 
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False):
         self.action = target
         self.interactive = interactive
+        if self.interactive: self.interact()
 
         self.parameters = {
             "args": args,
             "kwargs": kwargs,
             "error_handler": error_handler
         }
+
+        self.listeners = {
+            "once": {},
+            "on": {}
+        }
+
         self.result = None
 
         self.started = False
@@ -244,10 +251,31 @@ class Task:
 
     def interact(self):
         self.interactive = True
+        # Create other interaction tools (methods) here.
 
     def setstatus(self, status):
         self.status = status
-        # Trigger status change events, if any.
+        self.trigger("statuschange", status)
+
+    def once(self, event, action):
+        if event not in self.listeners["once"]:
+            self.listeners["once"][event] = []
+        self.listeners["once"][event].append(action)
+
+    def on(self, event: str, action):
+        if event not in self.listeners["on"]:
+            self.listeners["on"][event] = []
+        self.listeners["on"][event].append(action)
+
+    def trigger(self, event, *args):
+        if event in self.listeners["once"]:
+            for action in self.listeners["once"][event]:
+                action(*args)
+            del self.listeners["once"][event]
+
+        if event in self.listeners["on"]:
+            for action in self.listeners["on"][event]:
+                action(*args)
 
     def getresult(self):
         with self.lock:
@@ -375,6 +403,13 @@ if __name__ == "__main__":
 
     def test(task : Task):
         task.setstatus("running")
+        task.setstatus("finishing")
         print(task.status)
 
-    pool.assign(Task(test, interactive=True))
+    def statuser(status):
+        print("Status Changed:", status)
+
+    task = Task(test, interactive=True)
+    task.on("statuschange", statuser)
+
+    pool.assign(task)
