@@ -239,13 +239,18 @@ class Task:
     def __call__(self):
         self.setstatus("started")
 
-        if self.interactive:
-            self.result = self.action(self, *self.parameters["args"], **self.parameters["kwargs"])
+        try:
+            if self.interactive:
+                self.result = self.action(self, *self.parameters["args"], **self.parameters["kwargs"])
+            else:
+                self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
+        except Exception as error:
+            self.setstatus("failed")
+            raise error
         else:
-            self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
+            self.setstatus("completed")
 
-        self.setstatus("completed")
-        self.lock.release()
+        self.lock.release() # Can we run a task twice??
 
     def interact(self):
         self.interactive = True
@@ -421,4 +426,4 @@ if __name__ == "__main__":
     task.on("started", statuser)
     task.on("completed", statuser)
 
-    pool.assign(task)
+    pool.assign(task)()
