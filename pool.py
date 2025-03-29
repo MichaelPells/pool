@@ -1,5 +1,6 @@
 import sys
 import threading
+import io
 
 TIMEOUT = 60
 NOMINAL_WORKERS = 5
@@ -254,7 +255,7 @@ class Task:
 
     def interact(self):
         self.interactive = True
-        # Create other interaction tools (methods) here.
+        self.stdin, self.stdout, self.stderr = io.StringIO(), io.StringIO(), io.StringIO()
 
     def setstatus(self, status):
         self.status = status
@@ -415,6 +416,10 @@ if __name__ == "__main__":
     def test(task : Task):
         print(task.status)
         task.setstatus("running")
+        x = int(task.stdin.readline().strip())
+        y = x * 2
+        task.stdout.write(str(y) + "\n")
+        task.stdout.seek(0)
         task.setstatus("finishing")
         print(task.status)
 
@@ -426,4 +431,7 @@ if __name__ == "__main__":
     task.on("started", statuser)
     task.on("completed", statuser)
 
-    pool.assign(task)()
+    pool.assign(task)
+    task.stdin.write("2\n")
+    task.stdin.seek(0)
+    print(task.stdout.read())
