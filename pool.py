@@ -211,6 +211,24 @@ class Worker(threading.Thread):
                 self.task = None # Clear task.
                 self.pool.idler(self.id) # Register idleness.
 
+class TaskIO(io.StringIO):
+    def __init__(self, initial_value="", newline="\n"):
+        super().__init__(initial_value, newline)
+        self.read_lock = threading.Lock()
+        self.write_lock = threading.Lock()
+        self.read_seeker_position = 0
+
+    def write(self, s=""):
+        # with self.write_lock:
+            self.seek(0, io.SEEK_END)
+            return super().write(s)
+
+    def read(self, size: int | None = None):
+        # with self.read_lock:
+            self.seek(self.read_seeker_position)
+            data = super().read(size)
+            self.read_seeker_position = self.tell()
+            return data
 
 class Task:
     def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False):
@@ -255,7 +273,7 @@ class Task:
 
     def interact(self):
         self.interactive = True
-        self.stdin, self.stdout, self.stderr = io.StringIO(), io.StringIO(), io.StringIO()
+        self.stdin, self.stdout, self.stderr = TaskIO(), TaskIO(), TaskIO()
 
     def setstatus(self, status):
         self.status = status
@@ -416,10 +434,11 @@ if __name__ == "__main__":
     def test(task : Task):
         print(task.status)
         task.setstatus("running")
-        x = int(task.stdin.readline().strip())
+        # time.sleep(1)
+        x = task.stdin.read(10).strip()
         y = x * 2
-        task.stdout.write(str(y) + "\n")
-        task.stdout.seek(0)
+        print(y)
+        task.stdout.write(str(y))
         task.setstatus("finishing")
         print(task.status)
 
@@ -432,6 +451,6 @@ if __name__ == "__main__":
     task.on("completed", statuser)
 
     pool.assign(task)
-    task.stdin.write("2\n")
-    task.stdin.seek(0)
-    print(task.stdout.read())
+    task.stdin.write("Hello")
+    # time.sleep(2)
+    print(task.stdout.read(10))
