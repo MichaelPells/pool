@@ -20,5 +20,4 @@ import sys
 import io
 
 text = io.StringIO()
-
 print(text.read() * 2)
