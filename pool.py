@@ -1,6 +1,7 @@
 import sys
 import threading
 import io
+import os
 
 TIMEOUT = 60
 NOMINAL_WORKERS = 5
@@ -211,24 +212,35 @@ class Worker(threading.Thread):
                 self.task = None # Clear task.
                 self.pool.idler(self.id) # Register idleness.
 
-class TaskIO(io.StringIO):
-    def __init__(self, initial_value="", newline="\n"):
-        super().__init__(initial_value, newline)
-        self.read_lock = threading.Lock()
-        self.write_lock = threading.Lock()
-        self.read_seeker_position = 0
+class TaskIO(io.TextIOWrapper):
+    def __init__(self,
+                encoding: str | None = None,
+                errors: str | None = None,
+                newline: str | None = None,
+                line_buffering: bool = False,
+                write_through: bool = False
+                ):
+        r, w = os.pipe()
+        kwargs = {key:value for (key, value) in {"encoding": encoding, "errors": errors, "newline": newline}.items() if value}
+        self.r, self.w = os.fdopen(r, "r", **kwargs), os.fdopen(w, "w", **kwargs)
+        
+        super().__init__(self.r.buffer, encoding, errors, newline, line_buffering, write_through)
+        self.mode = "r+"
 
-    def write(self, s=""):
-        # with self.write_lock:
-            self.seek(0, io.SEEK_END)
-            return super().write(s)
+        self.flush = self.w.flush
+        self.truncate = self.w.truncate
+        self.writable = self.w.writable
+        self.write = self.w.write
+        self.writelines = self.w.writelines
 
-    def read(self, size: int | None = None):
-        # with self.read_lock:
-            self.seek(self.read_seeker_position)
-            data = super().read(size)
-            self.read_seeker_position = self.tell()
-            return data
+    def close(self):
+        self.r.close()
+        self.w.close()
+
+    # The following do not work:
+        # seek()
+        # tell()
+        # truncate()
 
 class Task:
     def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False):
@@ -434,11 +446,12 @@ if __name__ == "__main__":
     def test(task : Task):
         print(task.status)
         task.setstatus("running")
-        # time.sleep(1)
-        x = task.stdin.read(10).strip()
+        x = task.stdin.readline().strip()
+        print(task.stdin.tell())
         y = x * 2
         print(y)
-        task.stdout.write(str(y))
+        task.stdout.write(y + "\n")
+        task.stdout.flush()
         task.setstatus("finishing")
         print(task.status)
 
@@ -451,6 +464,8 @@ if __name__ == "__main__":
     task.on("completed", statuser)
 
     pool.assign(task)
-    task.stdin.write("Hello")
-    # time.sleep(2)
-    print(task.stdout.read(10))
+    task.stdin.write("Hello\n")
+    task.stdin.flush()
+    print(task.stdout.readline())
+    # print(task.stdout.read(4))
+    print(task.stdout.tell())
