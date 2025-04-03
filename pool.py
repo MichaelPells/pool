@@ -259,6 +259,10 @@ class Task:
             "on": {}
         }
 
+        self.attempts = 0
+        self.completes = 0
+        self.fails = 0
+
         self.result = None
 
         self.started = False
@@ -266,8 +270,17 @@ class Task:
         self.status = "pending"
         self.lock = threading.Lock()
         self.lock.acquire()
-    
+
+    def reset(self):
+        listeners = self.listeners
+
+        self.__init__(self.action, self.parameters["args"], self.parameters["kwargs"], self.parameters["error_handler"], self.interactive)
+        
+        self.listeners = listeners
+        # Register how many times this taks has been executed
+
     def __call__(self):
+        self.attempts += 1
         self.setstatus("started")
 
         try:
@@ -276,12 +289,13 @@ class Task:
             else:
                 self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         except Exception as error:
+            self.lock.release() # Can we run a task twice??
             self.setstatus("failed")
             raise error
         else:
+            self.lock.release() # Can we run a task twice??
             self.setstatus("completed")
 
-        self.lock.release() # Can we run a task twice??
         # Shouldn't unlock come before completed/failed events are triggered to avoid deadlocking?
 
     def interact(self):
@@ -320,7 +334,7 @@ class Task:
             for action in self.listeners["on"][event]:
                 action(*args)
 
-    def getresult(self):
+    def getresult(self): # When you really want to wait
         with self.lock:
             return self.result
 

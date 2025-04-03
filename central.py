@@ -140,7 +140,7 @@ class Instance:
             self.network.do({
                 "instance": self.instance_id,
                 "status": status,
-                "input": task.result # .result or .getresult()?
+                "input": task.result
             })
         task.once("completed", do)
 
