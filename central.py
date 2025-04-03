@@ -123,7 +123,12 @@ class Instance:
 
         return status
 
-    def node(self, task, next):
+    def node(self, target, next):
+        if not isinstance(target, Task):
+                task = Task(target) # Create a Task object
+        else:
+            task = target
+
         if type(next) != list:
             status = next
         else:
@@ -131,16 +136,18 @@ class Instance:
             status = self.indexedstatuses
             self.addstages(next, status)
 
-        self.network.pool.assign(target=self.network.do, kwargs={
-            "input": {
+        def do():
+            self.network.do({
                 "instance": self.instance_id,
                 "status": status,
-                "input": task()
-            }
-        })
+                "input": task.result # .result or .getresult()?
+            })
+        task.once("completed", do)
 
-        return status
+        self.network.pool.assign(task)
+        return task
 
+import time
 
 def app(network: Network):
     def main(instance: Instance):
@@ -148,11 +155,12 @@ def app(network: Network):
             print(i)
 
         def blocker():
-            for i in range(10000): pass
+            time.sleep(4)
+            print("Helloooooooo")
             return ("Looper Finished",)
 
         def post_looper_result(result):
-            print(result)
+            print(f"Result: {result}")
             network.stop() # Just for safety
 
         instance.addstage(post_looper_result, "after-looper")

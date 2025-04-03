@@ -282,6 +282,7 @@ class Task:
             self.setstatus("completed")
 
         self.lock.release() # Can we run a task twice??
+        # Shouldn't unlock come before completed/failed events are triggered to avoid deadlocking?
 
     def interact(self):
         self.interactive = True
@@ -322,8 +323,6 @@ class Task:
     def getresult(self):
         with self.lock:
             return self.result
-
-    # We wanted to implement an in-process communication between task and caller.
 
 def log(msg):
     if __name__ == "__main__":
