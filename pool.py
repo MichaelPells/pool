@@ -242,8 +242,8 @@ class TaskIO(io.TextIOWrapper):
         # tell()
         # truncate()
 
-class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False):
+class Task: # Shouldn't tasks have a name/id?
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False): # Should `listeners` also be here?
         self.action = target
         self.interactive = interactive
         if self.interactive: self.interact()
@@ -268,6 +268,7 @@ class Task:
         self.started = False
         self.completed = False
         self.status = "pending"
+
         self.lock = threading.Lock()
         self.lock.acquire()
 
@@ -276,6 +277,7 @@ class Task:
         self.started = False
         self.completed = False
         self.status = "pending"
+
         self.lock.acquire()
 
     def __call__(self):
@@ -297,11 +299,9 @@ class Task:
             self.completes += 1
             self.setstatus("completed")
 
-        # Shouldn't unlock come before completed/failed events are triggered to avoid deadlocking?
-
     def interact(self):
         self.interactive = True
-        self.stdin, self.stdout, self.stderr = TaskIO(), TaskIO(), TaskIO()
+        self.stdin, self.stdout, self.stderr = TaskIO(), TaskIO(), TaskIO() # Should all 3 be created even if not needed?
 
     def setstatus(self, status):
         self.status = status
@@ -313,7 +313,7 @@ class Task:
             self.completed = True
             self.emit("completed")
 
-        self.emit("statuschange", status)
+        self.emit("statuschange", status) # Should this be blocking or nonblocking, or optional?
 
     def once(self, event, action):
         if event not in self.listeners["once"]:
@@ -325,7 +325,7 @@ class Task:
             self.listeners["on"][event] = []
         self.listeners["on"][event].append(action)
 
-    def emit(self, event, *args):
+    def emit(self, event, *args): # For space management, can and should this be merged with `setstatus`?
         if event in self.listeners["once"]:
             for action in self.listeners["once"][event]:
                 action(*args)
