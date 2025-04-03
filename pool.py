@@ -82,7 +82,6 @@ class Pool:
             log(f'Stop is waiting for {self.workers}')
             # In the next iteration, Wait for `idle` to be updated.
             self.stopper.acquire()
-            print(self.workers) # But unfortunately idle is not being updated
             log(f'Stopper acquired for {self.idle}')
 
             while len(self.idle): # Should any worker have returned to `idle` before the last interation was over

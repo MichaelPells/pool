@@ -1,4 +1,5 @@
 from pool import Pool, Task
+import threading
 
 pool = Pool()
 pool.start()
@@ -13,7 +14,7 @@ def restarter():
         task.reset()
         pool.assign(task)
     else:
-        pool.stop()
+        threading.Thread(target=pool.stop).start()
 task.on("completed", restarter)
 
 pool.assign(task)
