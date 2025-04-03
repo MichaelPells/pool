@@ -82,6 +82,7 @@ class Pool:
             log(f'Stop is waiting for {self.workers}')
             # In the next iteration, Wait for `idle` to be updated.
             self.stopper.acquire()
+            print(self.workers) # But unfortunately idle is not being updated
             log(f'Stopper acquired for {self.idle}')
 
             while len(self.idle): # Should any worker have returned to `idle` before the last interation was over
@@ -272,12 +273,11 @@ class Task:
         self.lock.acquire()
 
     def reset(self):
-        listeners = self.listeners
-
-        self.__init__(self.action, self.parameters["args"], self.parameters["kwargs"], self.parameters["error_handler"], self.interactive)
-        
-        self.listeners = listeners
-        # Register how many times this taks has been executed
+        self.result = None
+        self.started = False
+        self.completed = False
+        self.status = "pending"
+        self.lock.acquire()
 
     def __call__(self):
         self.attempts += 1
@@ -289,11 +289,13 @@ class Task:
             else:
                 self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         except Exception as error:
-            self.lock.release() # Can we run a task twice??
+            self.lock.release()
+            self.fails += 1
             self.setstatus("failed")
             raise error
         else:
-            self.lock.release() # Can we run a task twice??
+            self.lock.release()
+            self.completes += 1
             self.setstatus("completed")
 
         # Shouldn't unlock come before completed/failed events are triggered to avoid deadlocking?

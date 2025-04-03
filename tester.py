@@ -1,19 +1,22 @@
 from pool import Pool, Task
 
-# pool = Pool()
-# pool.start()
+pool = Pool()
+pool.start()
 
-def sleeper():
-    print("Done")
+def sleeper(task: Task):
+    print(task.attempts)
 
-task = Task(sleeper)
+task = Task(sleeper, interactive=True)
 
 def restarter():
-    task.reset()
-    task()
+    if task.attempts < 1000:
+        task.reset()
+        pool.assign(task)
+    else:
+        pool.stop()
 task.on("completed", restarter)
 
-task()
+pool.assign(task)
 
 # from pool import Pool, Task
 # import time
