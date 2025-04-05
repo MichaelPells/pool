@@ -10,7 +10,7 @@ MAX_WORKERS = 1000
 
 def ERROR_HANDLER(error, target, *args, **kwargs):
     sys.stderr.write(f'''An error occurred while handling a task.
-Task: {target.action.__name__}(*{args}, **{kwargs})
+Task: {target.id or "{0}(*{1}, **{2})".format(target.action.__name__, args, kwargs)}
 Exception: {error}
 
 ''')
@@ -242,9 +242,10 @@ class TaskIO(io.TextIOWrapper):
         # tell()
         # truncate()
 
-class Task: # Shouldn't tasks have a name/id?
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, interactive=False): # Should `listeners` also be here?
+class Task:
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, interactive=False): # Should `listeners` also be here?
         self.action = target
+        self.id = id
         self.interactive = interactive
         if self.interactive: self.interact()
 

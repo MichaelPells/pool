@@ -69,12 +69,28 @@ class TaskIO(io.TextIOWrapper):
         # tell()
         # truncate()
 
-file = TaskIO()
-file.write("Hello")
-file.write("Hi\n")
-file.flush()
+# file = TaskIO()
+# file.write("Hello")
+# file.write("Hi\n")
+# file.flush()
 
-print(file.read(3))
-print(file.tell())
-print(file.read(3))
-print(file.tell())
+# print(file.read(3))
+# print(file.tell())
+# print(os.lseek(file.fileno(), 0, 0))
+# print(file.read(3))
+# print(file.tell())
+
+
+# r, w = os.pipe()
+# x, y = os.fdopen(r, "r"), os.fdopen(w, "w")
+
+# y.write("Hello")
+# y.flush()
+
+r, w = os.pipe()
+x = open("hello", "w")
+y = os.fdopen(w, "wb")
+z = os.fdopen(r, "rb")
+y.write(x.buffer)
+x.write("Hello\nHi\n")
+print(z.read(3))
