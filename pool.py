@@ -314,7 +314,7 @@ class Task:
             self.completed = True
             self.emit("completed")
 
-        self.emit("statuschange", status) # Should this be blocking or nonblocking, or optional?
+        self.emit("statuschange", status)
 
     def once(self, event, action):
         if event not in self.listeners["once"]:
@@ -326,7 +326,7 @@ class Task:
             self.listeners["on"][event] = []
         self.listeners["on"][event].append(action)
 
-    def emit(self, event, *args): # For space management, can and should this be merged with `setstatus`?
+    def emit(self, event, *args): # Should this be merged with `setstatus` later, for space management?
         if event in self.listeners["once"]:
             for action in self.listeners["once"][event]:
                 action(*args)
