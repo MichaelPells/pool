@@ -243,8 +243,7 @@ class TaskIO(io.TextIOWrapper):
         # truncate()
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, interactive=False): # Should `listeners` also be here?
-        self.action = target
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, interactive=False):
         self.id = id
         self.interactive = interactive
         if self.interactive: self.interact()
