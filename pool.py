@@ -99,7 +99,7 @@ class Pool:
                         del self.workers[id]
                         log(f'{id} killed')
 
-    def hire(self, job, role):
+    def appoint(self, job, role):
         ...
     
     # This function assumes it is being run synchronously, and that no more than one instance of it runs at a time.
