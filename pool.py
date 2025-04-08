@@ -59,19 +59,20 @@ class Pool:
     def unidler(self, id):
         self.idle.remove(id)
 
-    def start(self, number=0):
-        if not number:
-            number = self.nominal_workers
+    def start(self, workers=0):
+        if not workers:
+            workers = self.nominal_workers
 
         self.working = True
 
-        for n in range(number):
-            self.new_worker_id += 1
-            worker = Worker(self, self.new_worker_id)
-            worker.start()
+        if type(worker) == int:
+            for _ in range(workers):
+                self.new_worker_id += 1
+                worker = Worker(self, self.new_worker_id)
+                worker.start()
 
-            self.workers[self.new_worker_id] = worker
-            self.idle.append(self.new_worker_id)
+                self.workers[self.new_worker_id] = worker
+                self.idle.append(self.new_worker_id)
 
         return self.new_worker_id
     
@@ -99,7 +100,7 @@ class Pool:
                         log(f'{id} killed')
     
     # This function assumes it is being run synchronously, and that no more than one instance of it runs at a time.
-    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, worker= None, interactive=False):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, interactive) # Create a Task object
