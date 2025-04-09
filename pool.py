@@ -40,6 +40,7 @@ class Pool:
         self.workers = {}
         self.idle = []
         self.new_worker_id = 0
+        self.members = {}
         self.queue = []
 
     def idler(self, id):
@@ -116,16 +117,49 @@ class Pool:
         except RuntimeError:
             pass
 
-    def appoint(self, job, role):
-        ...
+    def routine(self, task, member):
+        while True:
+            task.operate.acquire()
 
-    def assign2(self, worker, args=(), kwargs={}):
-        ...
+            while True:
+                try:
+                    operation = task.operations.pop(0)
+                except IndexError:
+                    break
+
+                try:
+                    member(*operation["args"], **operation["kwargs"]) # Can there be an option for interactive later on?
+                except Exception:
+                    ...
+
+                # May be return a log of performance later.
+
+    def appoint(self, member, role, error_handler=None):
+        task = self.assign(self.routine, args=(member,), error_handler=error_handler, interactive=True)
+        self.members[role] = task
+
+        return role
+
+    def assign2(self, role, args=(), kwargs={}):
+        if role in self.members:
+            task = self.members[role]
+
+            task.operations.append({
+                "args": args,
+                "kwargs": kwargs
+            })
+
+            try:
+                task.operate.release()
+            except RuntimeError:
+                pass
+        else:
+            raise RuntimeError(f"Operation assigned to an unidentified role ({role}).")
 
     def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
         if self.working:
             if not isinstance(target, Task):
-                task = Task(target, args, kwargs, error_handler or self.error_handler, interactive) # Create a Task object
+                task = Task(target, args, kwargs, error_handler or self.error_handler, interactive=interactive) # Create a Task object
             else:
                 task = target
 
@@ -316,6 +350,9 @@ class Task:
         self.completed = False
         self.status = "pending"
 
+        self.operations = []
+        self.operate = threading.Lock()
+
         self.lock = threading.Lock()
         self.lock.acquire()
 
@@ -324,6 +361,7 @@ class Task:
         self.started = False
         self.completed = False
         self.status = "pending"
+        self.operations = []
 
         self.lock.acquire()
 
