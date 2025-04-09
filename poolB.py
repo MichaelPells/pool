@@ -30,7 +30,6 @@ class Pool:
         self.max_workers = max_workers
         self.error_handler = error_handler
 
-        self.queuer = threading.Lock()
         self.prober = threading.Lock()
         self.waiter = threading.Lock()
         self.stopper = threading.Lock()
@@ -39,7 +38,7 @@ class Pool:
         self.workers = {}
         self.idle = []
         self.new_worker_id = 0
-        self.queue = []
+
 
     def idler(self, id):
         self.idle.append(id)
@@ -64,26 +63,20 @@ class Pool:
         if not workers:
             workers = self.nominal_workers
 
-        if not self.working:
-            self.working = True
-            resumed = True
-        else:
-            resumed = False
+        self.working = True
 
-        for _ in range(workers):
-            self.new_worker_id += 1
-            worker = Worker(self, self.new_worker_id)
-            worker.start()
+        if type(workers) == int:
+            for _ in range(workers):
+                self.new_worker_id += 1
+                worker = Worker(self, self.new_worker_id)
+                worker.start()
 
-            self.workers[self.new_worker_id] = worker
-            self.idle.append(self.new_worker_id)
-
-        if resumed:
-            threading.Thread(target=self.manager).start()
+                self.workers[self.new_worker_id] = worker
+                self.idle.append(self.new_worker_id)
 
         return self.new_worker_id
-
-    def stop(self): # Does stop respect unprocessed tasks right now?
+    
+    def stop(self):
         self.working = False
 
         while len(self.workers):
@@ -105,87 +98,62 @@ class Pool:
                         self.idle.remove(id)
                         del self.workers[id]
                         log(f'{id} killed')
-
-        try:
-            self.queuer.release()
-        except RuntimeError:
-            pass
-
-    def appoint(self, job, role):
-        ...
-
+    
+    # This function assumes it is being run synchronously, and that no more than one instance of it runs at a time.
     def assign(self, target, args=(), kwargs={}, error_handler=None, worker= None, interactive=False):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, interactive) # Create a Task object
             else:
                 task = target
-
-            self.queue.append(task)
-
+            # Looking for an available worker
+            # Note: This whole section (especially loop) could have been done differently.
+            # But I'm not sure timeliness would be guaranteed
             try:
-                self.queuer.release()
-            except RuntimeError:
-                pass
-            
-            return task
-        else:
-            raise RuntimeError("Task assigned to a stopped pool.")
-
-    def manager(self):
-        while self.working:
-            self.queuer.acquire()
-
-            while True:
-                try:
-                    task = self.queue.pop(0)
-                except IndexError:
-                    break
-
-                # Looking for an available worker
-                # Note: This whole section (especially loop) could have been done differently.
-                # But I'm not sure timeliness would be guaranteed
-                try:
-                    n = 0
-                    while True:
-                        # Worker is ideally `idle[0]`.
-                        # But who can tell? Worker may not be ready for next task instantly, as exemplified below.
-                        # Hence, the loop and checks.
-                        worker = self.workers[self.idle[n]]
-                        if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
-                            worker.task = task # Assign the task to this worker
-                            try:
-                                worker.lock.release() # Unlock worker
-                            except RuntimeError:
-                                pass
-
-                            # Taking a peep into `idle` for the next worker.
-                            # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
-                            # Create a new worker if none.
-                            # This ensures there is always at least 1 available worker for the next incoming task.
-                            try:
-                                self.idle[n + 1]
-                            except IndexError:
-                                if len(self.workers) < MAX_WORKERS:
-                                    self.start(1)
-
-                            break
-                        n += 1
-                except IndexError: # Means we reached the end of idle, yet no available worker
-                    if len(self.workers) < MAX_WORKERS:
-                        new_worker_id = self.start(1) # Create a new worker
-                        worker = self.workers[new_worker_id]
+                n = 0
+                while True:
+                    # Worker is ideally `idle[0]`.
+                    # But who can tell? Worker may not be ready for next task instantly, as exemplified below.
+                    # Hence, the loop and checks.
+                    worker = self.workers[self.idle[n]]
+                    if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
                         worker.task = task # Assign the task to this worker
                         try:
                             worker.lock.release() # Unlock worker
                         except RuntimeError:
                             pass
-                    else:
-                        # Wait for `idle` to be updated.
-                        self.waiter.acquire()
-                        self.waiter.acquire()
 
-                        self.assign(task)
+                        # Taking a peep into `idle` for the next worker.
+                        # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
+                        # Create a new worker if none.
+                        # This ensures there is always at least 1 available worker for the next incoming task.
+                        try:
+                            self.idle[n + 1]
+                        except IndexError:
+                            if len(self.workers) < MAX_WORKERS:
+                                self.start(1)
+
+                        break
+                    n += 1
+            except IndexError: # Means we reached the end of idle, yet no available worker
+                if len(self.workers) < MAX_WORKERS:
+                    new_worker_id = self.start(1) # Create a new worker
+                    worker = self.workers[new_worker_id]
+                    worker.task = task # Assign the task to this worker
+                    try:
+                        worker.lock.release() # Unlock worker
+                    except RuntimeError:
+                        pass
+                else:
+                    # Wait for `idle` to be updated.
+                    self.waiter.acquire()
+                    self.waiter.acquire()
+
+                    self.assign(task)
+            
+            return task
+        else:
+            raise RuntimeError("Task assigned to a stopped pool.")
 
 
 class Worker(threading.Thread):
