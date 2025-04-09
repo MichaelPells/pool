@@ -61,7 +61,7 @@ class Pool:
     def unidler(self, id):
         self.idle.remove(id)
 
-    def start(self, workers=0):
+    def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
         if not workers:
             workers = self.nominal_workers
 
@@ -119,7 +119,10 @@ class Pool:
     def appoint(self, job, role):
         ...
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, worker= None, interactive=False):
+    def assign2(self, worker, args=(), kwargs={}):
+        ...
+
+    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, interactive) # Create a Task object
