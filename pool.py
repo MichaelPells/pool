@@ -33,7 +33,8 @@ class Pool:
         self.queuer = threading.Lock()
         self.prober = threading.Lock()
         self.waiter = threading.Lock()
-        self.stopper = threading.Lock()
+        self.stopper1 = threading.Lock()
+        self.stopper2 = threading.Lock()
 
         self.working = False
         self.workers = {}
@@ -52,7 +53,7 @@ class Pool:
 
         # Unlock stop
         try:
-            self.stopper.release()
+            self.stopper2.release()
         except RuntimeError:
             pass
         log(f'Stopper released by {id}')
@@ -83,16 +84,20 @@ class Pool:
 
         return self.new_worker_id
 
-    def stop(self): # Does stop respect unprocessed tasks right now?
+    def stop(self):
         self.working = False
 
-        while len(self.workers):
+        if self.queue:
+            self.stopper1.acquire()
+            self.stopper1.acquire()
+
+        while self.workers:
             log(f'Stop is waiting for {self.workers}')
             # In the next iteration, Wait for `idle` to be updated.
-            self.stopper.acquire()
+            self.stopper2.acquire()
             log(f'Stopper acquired for {self.idle}')
 
-            while len(self.idle): # Should any worker have returned to `idle` before the last interation was over
+            while self.idle: # Should any worker have returned to `idle` before the last interation was over
                 for id in self.idle:
                     worker = self.workers[id]
 
@@ -133,7 +138,7 @@ class Pool:
             raise RuntimeError("Task assigned to a stopped pool.")
 
     def manager(self):
-        while self.working:
+        while self.working or self.queue:
             self.queuer.acquire()
 
             while True:
@@ -186,6 +191,11 @@ class Pool:
                         self.waiter.acquire()
 
                         self.assign(task)
+        else:
+            try:
+                self.stopper1.release()
+            except RuntimeError:
+                pass
 
 
 class Worker(threading.Thread):
