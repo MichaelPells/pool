@@ -154,7 +154,7 @@ class Instance:
         self.network.pool.assign(task)
         return task
 
-    def node2(self, node, args, kwargs, next): # Can `args` & `kwargs` be represented by a higher-level `data`?
+    def nodeon(self, node, args, kwargs, next): # Can `args` & `kwargs` be represented by a higher-level `data`?
         if type(next) != list:
             status = next
         else:
@@ -199,7 +199,7 @@ def app(network: Network):
 
         instance.addstage(post_looper_result, "after-looper")
         instance.node(blocker, "after-looper")
-        instance.node2("sleeper", (), {}, instance.addstage(post_sleeper_result))
+        instance.nodeon("sleeper", (), {}, instance.addstage(post_sleeper_result))
         # instance.node(blocker, instance.addstage(post_looper_result))
         # instance.node(blocker, [post_looper_result])
 

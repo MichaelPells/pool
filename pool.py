@@ -1,3 +1,5 @@
+# Use kwargs in function calls
+# Use with statement in locks where possible
 import sys
 import threading
 import io
@@ -460,7 +462,7 @@ class Task:
         else:
             return self.lock.acquire(timeout=timeout)
 
-    def getresult(self): # When you really want to wait
+    def getresult(self):
         with self.lock:
             return self.result
 
