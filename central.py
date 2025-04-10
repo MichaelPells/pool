@@ -154,7 +154,7 @@ class Instance:
         self.network.pool.assign(task)
         return task
 
-    def node2(self, node, args, kwargs, next):
+    def node2(self, node, args, kwargs, next): # Can `args` & `kwargs` be represented by a higher-level `data`?
         if type(next) != list:
             status = next
         else:

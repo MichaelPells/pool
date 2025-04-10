@@ -184,12 +184,15 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, interactive=interactive) # Create a Task object
             else:
                 task = target
+
+            if behaviour:
+                behaviour(task)
 
             self.queue.append(task)
 
