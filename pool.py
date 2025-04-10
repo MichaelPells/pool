@@ -114,8 +114,6 @@ class Pool:
                         self.idle.remove(id)
                         del self.workers[id]
                         log(f'{id} killed')
-        print(self.workers)
-
 
         try:
             self.queuer.release()
@@ -153,6 +151,12 @@ class Pool:
         if role in self.members:
             member = self.members[role]
             member.completed = True
+
+            try:
+                member.operate.release()
+            except RuntimeError:
+                pass
+            
             del self.members[role]
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")

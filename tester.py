@@ -37,9 +37,9 @@ def doubler(x):
 pool.appoint(doubler, "doubler")
 
 operation = pool.assign2("doubler", args=(2,))
-pool.assign2("doubler", args=(3,))
 print(operation.getresult())
 
+# pool.assign2("doubler", args=(3,))
 # pool.assign2("doubler", args=(4,))
 # pool.assign2("doubler", args=(5,))
 # pool.assign2("doubler", args=(6,))
