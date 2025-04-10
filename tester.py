@@ -33,17 +33,19 @@ pool = Pool()
 pool.start()
 
 def doubler(x):
-    print(x * 2)
+    return x * 2
 pool.appoint(doubler, "doubler")
 
-pool.assign2("doubler", args=(2,))
+operation = pool.assign2("doubler", args=(2,))
 pool.assign2("doubler", args=(3,))
-pool.assign2("doubler", args=(4,))
-pool.assign2("doubler", args=(5,))
-pool.assign2("doubler", args=(6,))
-pool.assign2("doubler", args=(7,))
-pool.assign2("doubler", args=(8,))
-pool.assign2("doubler", args=(9,))
+print(operation.getresult())
+
+# pool.assign2("doubler", args=(4,))
+# pool.assign2("doubler", args=(5,))
+# pool.assign2("doubler", args=(6,))
+# pool.assign2("doubler", args=(7,))
+# pool.assign2("doubler", args=(8,))
+# pool.assign2("doubler", args=(9,))
 pool.stop()
 
 # from pool import Pool, Task

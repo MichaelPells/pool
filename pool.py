@@ -114,34 +114,36 @@ class Pool:
                         self.idle.remove(id)
                         del self.workers[id]
                         log(f'{id} killed')
+        print(self.workers)
+
 
         try:
             self.queuer.release()
         except RuntimeError:
             pass
 
-    def routine(self, task, member):
-        while not task.completed or task.operations:
-            task.operate.acquire()
+    def member(self, member, _):
+        while not member.completed or member.operations:
+            member.operate.acquire()
 
             while True:
                 try:
-                    operation = task.operations.pop(0)
+                    operation = member.operations.pop(0)
                 except IndexError:
                     break
 
                 try:
-                    member(*operation["args"], **operation["kwargs"]) # Can there be an option for interactive later on?
+                    operation()
                 except Exception:
                     ...
 
-                # May be return a log of performance later.
+        # May be return a log of performance later.
 
-    def appoint(self, member, role, error_handler=None):
+    def appoint(self, routine, role, error_handler=None):
         if self.working:
-            task = Task(self.routine, args=(member,), error_handler=error_handler, id=role, interactive=True)
-            self.assign(task)
-            self.members[role] = task
+            member = Task(self.member, args=(routine,), error_handler=error_handler, id=role, interactive=True)
+            self.assign(member)
+            self.members[role] = member
 
             return role
         else:
@@ -149,8 +151,8 @@ class Pool:
 
     def terminate(self, role):
         if role in self.members:
-            task = self.members[role]
-            task.completed = True
+            member = self.members[role]
+            member.completed = True
             del self.members[role]
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
@@ -158,17 +160,16 @@ class Pool:
     def assign2(self, role, args=(), kwargs={}):
         if self.working:
             if role in self.members:
-                task = self.members[role]
-
-                task.operations.append({
-                    "args": args,
-                    "kwargs": kwargs
-                })
+                member = self.members[role]
+                operation = Task(member.parameters["args"][0], args, kwargs) # Can there be an option for interactive later on?
+                member.operations.append(operation)
 
                 try:
-                    task.operate.release()
+                    member.operate.release()
                 except RuntimeError:
                     pass
+
+                return operation
             else:
                 raise RuntimeError(f"Operation assigned to an unidentified role ({role}).")
         else:
