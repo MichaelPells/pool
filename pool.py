@@ -120,7 +120,7 @@ class Pool:
         except RuntimeError:
             pass
 
-    def member(self, member, _):
+    def member(self, member, routine, interactive):
         while not member.completed or member.operations:
             member.operate.acquire()
 
@@ -137,9 +137,9 @@ class Pool:
 
         # May be return a log of performance later.
 
-    def appoint(self, routine, role, error_handler=None):
+    def appoint(self, routine, role, error_handler=None, interactive=False):
         if self.working:
-            member = Task(self.member, args=(routine,), error_handler=error_handler, id=role, interactive=True)
+            member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
             self.assign(member)
             self.members[role] = member
 
@@ -165,7 +165,8 @@ class Pool:
         if self.working:
             if role in self.members:
                 member = self.members[role]
-                operation = Task(member.parameters["args"][0], args, kwargs) # Can there be an option for interactive later on?
+                member_params = member.parameters["args"]
+                operation = Task(member_params[0], args, kwargs, interactive=member_params[1])
                 member.operations.append(operation)
 
                 try:
@@ -398,14 +399,14 @@ class Task:
             else:
                 self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         except Exception as error:
-            self.lock.release()
             self.fails += 1
             self.setstatus("failed")
+            self.lock.release()
             raise error
         else:
-            self.lock.release()
             self.completes += 1
             self.setstatus("completed")
+            self.lock.release()
 
     def interact(self):
         self.interactive = True
@@ -420,6 +421,9 @@ class Task:
         elif status == "completed":
             self.completed = True
             self.emit("completed")
+        elif status == "failed":
+            self.completed = True
+            self.emit("failed")
 
         self.emit("statuschange", status)
 
@@ -442,6 +446,12 @@ class Task:
         if event in self.listeners["on"]:
             for action in self.listeners["on"][event]:
                 action(*args)
+
+    def wait(self, timeout=None):
+        if timeout == None:
+            return self.lock.acquire()
+        else:
+            return self.lock.acquire(timeout=timeout)
 
     def getresult(self): # When you really want to wait
         with self.lock:

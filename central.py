@@ -25,6 +25,9 @@ class Network:
             self.sleeper.release()
         except: pass
 
+    def newnode(self, routine, name):
+        self.pool.appoint(routine, name)
+
     def adddefaultstage(self, stage):
         self.defaultstages.append(stage)
 
@@ -147,9 +150,32 @@ class Instance:
         self.network.pool.assign(task)
         return task
 
+    def node2(self, node, args, kwargs, next):
+        if type(next) != list:
+            status = next
+        else:
+            self.indexedstatuses += 1
+            status = self.indexedstatuses
+            self.addstages(next, status)
+
+        def do():
+            self.network.do({
+                "instance": self.instance_id,
+                "status": status,
+                "input": task.result
+            })
+        task.once("completed", do)
+
+        self.network.pool.assign2(node, args, kwargs)
+        return task
+
 import time
 
 def app(network: Network):
+    def sleeper():
+        time.sleep(4)
+    network.newnode(sleeper, "sleeper")
+
     def main(instance: Instance):
         for i in range(5):
             print(i)

@@ -34,10 +34,11 @@ pool.start()
 
 def doubler(x):
     return x * 2
-pool.appoint(doubler, "doubler")
+pool.appoint(doubler, "doubler", interactive=True)
 
 operation = pool.assign2("doubler", args=(2,))
-print(operation.getresult())
+operation.wait()
+print(operation.status)
 
 # pool.assign2("doubler", args=(3,))
 # pool.assign2("doubler", args=(4,))
