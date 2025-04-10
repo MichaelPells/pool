@@ -92,6 +92,9 @@ class Pool:
             self.stopper1.acquire()
             self.stopper1.acquire()
 
+        for role in dict(self.members):
+            self.terminate(role)
+
         while self.workers:
             log(f'Stop is waiting for {self.workers}')
             # In the next iteration, Wait for `idle` to be updated.
@@ -118,7 +121,7 @@ class Pool:
             pass
 
     def routine(self, task, member):
-        while True:
+        while not task.completed or task.operations:
             task.operate.acquire()
 
             while True:
@@ -135,26 +138,41 @@ class Pool:
                 # May be return a log of performance later.
 
     def appoint(self, member, role, error_handler=None):
-        task = self.assign(self.routine, args=(member,), error_handler=error_handler, interactive=True)
-        self.members[role] = task
+        if self.working:
+            task = Task(self.routine, args=(member,), error_handler=error_handler, id=role, interactive=True)
+            self.assign(task)
+            self.members[role] = task
 
-        return role
+            return role
+        else:
+            raise RuntimeError("Role assigned within a stopped pool.")
 
-    def assign2(self, role, args=(), kwargs={}):
+    def terminate(self, role):
         if role in self.members:
             task = self.members[role]
-
-            task.operations.append({
-                "args": args,
-                "kwargs": kwargs
-            })
-
-            try:
-                task.operate.release()
-            except RuntimeError:
-                pass
+            task.completed = True
+            del self.members[role]
         else:
-            raise RuntimeError(f"Operation assigned to an unidentified role ({role}).")
+            raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
+
+    def assign2(self, role, args=(), kwargs={}):
+        if self.working:
+            if role in self.members:
+                task = self.members[role]
+
+                task.operations.append({
+                    "args": args,
+                    "kwargs": kwargs
+                })
+
+                try:
+                    task.operate.release()
+                except RuntimeError:
+                    pass
+            else:
+                raise RuntimeError(f"Operation assigned to an unidentified role ({role}).")
+        else:
+            raise RuntimeError("Operation assigned within a stopped pool.")
 
     def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False):
         if self.working:
