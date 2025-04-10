@@ -161,12 +161,16 @@ class Pool:
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
 
-    def assign2(self, role, args=(), kwargs={}):
+    def assign2(self, role, args=(), kwargs={}, behaviour=None):
         if self.working:
             if role in self.members:
                 member = self.members[role]
                 member_params = member.parameters["args"]
                 operation = Task(member_params[0], args, kwargs, interactive=member_params[1])
+
+                if behaviour:
+                    behaviour(operation)
+
                 member.operations.append(operation)
 
                 try:

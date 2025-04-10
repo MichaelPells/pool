@@ -10,6 +10,7 @@ class Network:
         self.sleeper = threading.Lock()
         self.ready = True
 
+        self.nodes = {}
         self.inputs = []
         self.defaultstages = []
         self.instances = {}
@@ -26,7 +27,7 @@ class Network:
         except: pass
 
     def newnode(self, routine, name):
-        self.pool.appoint(routine, name)
+        self.nodes[name] = routine
 
     def adddefaultstage(self, stage):
         self.defaultstages.append(stage)
@@ -65,7 +66,7 @@ class Network:
                 instance_id = INPUT["instance"]
                 instance = self.instances[instance_id]
 
-            input = INPUT["input"] if "input" in INPUT else ()
+            input = INPUT["input"] if ("input" in INPUT and INPUT["input"] != None) else ()
             input_type = type(input)
 
             if status == "entrypoint":
@@ -95,6 +96,9 @@ class Network:
     def start(self):
         self.running = True
         self.pool.start()
+
+        for name, routine in self.nodes.items():
+            self.pool.appoint(routine, name)
 
         threading.Thread(target=self.run).start()
 
@@ -158,22 +162,23 @@ class Instance:
             status = self.indexedstatuses
             self.addstages(next, status)
 
-        def do():
-            self.network.do({
-                "instance": self.instance_id,
-                "status": status,
-                "input": task.result
-            })
-        task.once("completed", do)
+        def behaviour(operation):
+            def do():
+                self.network.do({
+                    "instance": self.instance_id,
+                    "status": status,
+                    "input": operation.result
+                })
+            operation.once("completed", do)
 
-        self.network.pool.assign2(node, args, kwargs)
-        return task
+        operation = self.network.pool.assign2(node, args, kwargs, behaviour)
+        return operation
 
 import time
 
 def app(network: Network):
     def sleeper():
-        time.sleep(4)
+        time.sleep(2)
     network.newnode(sleeper, "sleeper")
 
     def main(instance: Instance):
@@ -189,8 +194,12 @@ def app(network: Network):
             print(f"Result: {result}")
             network.stop() # Just for safety
 
+        def post_sleeper_result():
+            print(f"Result2")
+
         instance.addstage(post_looper_result, "after-looper")
         instance.node(blocker, "after-looper")
+        instance.node2("sleeper", (), {}, instance.addstage(post_sleeper_result))
         # instance.node(blocker, instance.addstage(post_looper_result))
         # instance.node(blocker, [post_looper_result])
 
