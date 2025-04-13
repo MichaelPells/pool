@@ -409,13 +409,13 @@ class Task:
                 self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         except Exception as error:
             self.fails += 1
-            self.setstatus("failed")
             self.lock.release()
+            self.setstatus("failed")
             raise error
         else:
             self.completes += 1
-            self.setstatus("completed")
             self.lock.release()
+            self.setstatus("completed")
 
     def interact(self):
         self.interactive = True
