@@ -66,32 +66,33 @@ class Network:
                 instance_id = INPUT["instance"]
                 instance = self.instances[instance_id]
 
-            input = INPUT["input"] if ("input" in INPUT and INPUT["input"] != None) else ()
-            input_type = type(input)
+            input = INPUT["input"] if "input" in INPUT else None
 
             if status == "entrypoint":
-                if input_type == tuple or input_type == list:
+                if input is None:
                     for stage in instance.stages[status]:
-                        stage(instance, *input)
+                        stage(instance)
 
-                elif input_type == dict:
+                elif type(input) == Input:
                     for stage in instance.stages[status]:
-                        stage(instance, **input)
+                        stage(instance, *input.args, **input.kwargs)
 
                 else:
-                    raise TypeError("Blah Blah")
+                    for stage in instance.stages[status]:
+                        stage(instance, input)
 
             else:
-                if input_type == tuple or input_type == list:
+                if input is None:
                     for stage in instance.stages[status]:
-                        stage(*input)
+                        stage()
 
-                elif input_type == dict:
+                elif type(input) == Input:
                     for stage in instance.stages[status]:
-                        stage(**input)
+                        stage(*input.args, **input.kwargs)
 
                 else:
-                    raise TypeError("Blah Blah")
+                    for stage in instance.stages[status]:
+                        stage(input)
 
     def start(self):
         self.running = True
@@ -174,6 +175,28 @@ class Instance:
         operation = self.network.pool.assign2(node, args, kwargs, behaviour)
         return operation
 
+
+class Input:
+    def __init__(self, args: tuple | dict = (), kwargs: dict | None = None):
+        if type(args) == tuple:
+            self.args = args
+
+            if type(kwargs) == dict or kwargs is None:
+                self.kwargs = kwargs or {}
+            else:
+                raise TypeError("kwargs can only be a dictionary or None.")
+            
+        elif type(args) == dict:
+            self.args = ()
+            self.kwargs = args
+
+            if kwargs != None:
+                raise TypeError("kwargs can only be None when args is a dictionary.")
+            
+        else:
+            raise TypeError("args can only be a tuple or dictionary.")
+
+
 import time
 
 def app(network: Network):
@@ -188,7 +211,7 @@ def app(network: Network):
         def blocker():
             time.sleep(4)
             print("Helloooooooo")
-            return ("Looper Finished",)
+            return Input(("Looper Finished",))
 
         def post_looper_result(result):
             print(f"Result: {result}")
