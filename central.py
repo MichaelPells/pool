@@ -50,6 +50,7 @@ class Network:
                     self.ready = True
                     self.sleeper.acquire()
                     INPUT = self.inputs.pop(0)
+
                     try:
                         self.sleeper.release()
                     except RuntimeError:

@@ -89,9 +89,19 @@ class Pool:
     def stop(self):
         self.working = False
 
+        try:
+            self.queuer.release()
+        except RuntimeError:
+            pass
+
         if self.queue:
             self.stopper1.acquire()
             self.stopper1.acquire()
+
+            try:
+                self.stopper1.release()
+            except RuntimeError:
+                pass
 
         for role in dict(self.members):
             self.terminate(role)
@@ -115,11 +125,11 @@ class Pool:
                         self.idle.remove(id)
                         del self.workers[id]
                         log(f'{id} killed')
-
-        try:
-            self.queuer.release()
-        except RuntimeError:
-            pass
+        else:
+            try:
+                self.stopper2.release()
+            except RuntimeError:
+                pass
 
     def member(self, member, routine, interactive):
         while not member.completed or member.operations:
@@ -154,6 +164,8 @@ class Pool:
     def appoint(self, routine, role, error_handler=None, interactive=False):
         if self.working:
             member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
+            member.__setattr__("operations", [])
+            member.__setattr__("operate", threading.Lock())
             self.assign(member)
             self.members[role] = member
 
@@ -198,13 +210,14 @@ class Pool:
     def team(self, workers, routine, role, error_handler=None, interactive=False):
         if self.working:
             supervisor = Task(self.supervisor, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
-            team = {
+            supervisor.__setattr__("operations", [])
+            supervisor.__setattr__("operate", threading.Lock())
+            supervisor.__setattr__("team", {
                 "members": [],
                 "idleness": {
                     0: []
                     }
-            }
-            supervisor.__setattr__("team", team)
+            })
 
             def dissolver():
                 for member in supervisor.team["members"]:
@@ -220,6 +233,8 @@ class Pool:
 
             for _ in range(workers):
                 member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
+                member.__setattr__("operations", [])
+                member.__setattr__("operate", threading.Lock())
                 member.__setattr__("supervisor", supervisor)
                 member.__setattr__("idleness", 0)
                 member.__setattr__("idler", threading.Lock())
@@ -298,7 +313,7 @@ class Pool:
 
     def manager(self):
         while self.working or self.queue:
-            self.queuer.acquire()
+            self.queuer.acquire() # Will this not deadlock if release happens between break (child loop) and this line?
 
             while True:
                 try:
@@ -478,9 +493,6 @@ class Task:
         self.completed = False
         self.status = "pending"
 
-        self.operations = []
-        self.operate = threading.Lock()
-
         self.lock = threading.Lock()
         self.lock.acquire()
 
@@ -489,7 +501,6 @@ class Task:
         self.started = False
         self.completed = False
         self.status = "pending"
-        self.operations = []
 
         self.lock.acquire()
 
