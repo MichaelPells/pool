@@ -231,8 +231,8 @@ class Pool:
             self.assign(supervisor)
             self.members[role] = supervisor
 
-            for _ in range(workers):
-                member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
+            for n in range(workers):
+                member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=f"{role}-{n}", interactive=True)
                 member.__setattr__("operations", [])
                 member.__setattr__("operate", threading.Lock())
                 member.__setattr__("supervisor", supervisor)
