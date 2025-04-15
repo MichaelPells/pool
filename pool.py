@@ -313,7 +313,7 @@ class Pool:
 
     def manager(self):
         while self.working or self.queue:
-            self.queuer.acquire() # Will this not deadlock if release happens between break (child loop) and this line?
+            self.queuer.acquire()
 
             while True:
                 try:
