@@ -465,7 +465,7 @@ class TaskIO(io.TextIOWrapper):
         # truncate()
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, weight=1, interactive=False): # Should `listeners` also be here?
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, weight=1, interactive=False):
         self.action = target
         self.id = id
         self.weight = weight
