@@ -8,6 +8,7 @@ def printer(x):
 
 pool.team(3, printer, "printer")
 pool.assign2("printer", ("hello",))
+pool.stop()
 
 # from pool import Pool, Task
 # import threading

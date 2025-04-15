@@ -205,7 +205,16 @@ class Pool:
                     }
             }
             supervisor.__setattr__("team", team)
-            
+
+            def dissolver():
+                for member in supervisor.team["members"]:
+                    member.completed = True
+                    try:
+                        member.operate.release()
+                    except RuntimeError:
+                        pass
+            supervisor.once("completed", dissolver)
+
             self.assign(supervisor)
             self.members[role] = supervisor
 
@@ -222,6 +231,12 @@ class Pool:
             return role
         else:
             raise RuntimeError("Role assigned within a stopped pool.")
+
+    def dissolve(self, team):
+        if team in self.members:
+            self.terminate(team)
+        else:
+            raise RuntimeError(f"Attempted to dissolve an unknown team ({team}).")
 
     def terminate(self, role):
         if role in self.members:
