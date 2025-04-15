@@ -1,5 +1,4 @@
 # Use kwargs in function calls
-# Use with statement in locks where possible
 import sys
 import threading
 import io
@@ -136,6 +135,19 @@ class Pool:
                     operation()
                 except Exception:
                     ...
+                finally:
+                    if "supervisor" in member.__dict__:
+                        with member.idler:
+                            idleness = member.idleness
+                            member.supervisor.team["idleness"][idleness].remove(member)
+                            if not member.supervisor.team["idleness"][idleness]:
+                                del member.supervisor.team["idleness"][idleness]
+
+                            idleness -= operation.weight
+                            if idleness not in member.supervisor.team["idleness"]:
+                                member.supervisor.team["idleness"][idleness] = []
+                            member.supervisor.team["idleness"][idleness].append(member)
+                            member.idleness = idleness
 
         # May be return a log of performance later.
 
@@ -144,6 +156,68 @@ class Pool:
             member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
             self.assign(member)
             self.members[role] = member
+
+            return role
+        else:
+            raise RuntimeError("Role assigned within a stopped pool.")
+
+    def supervisor(self, supervisor, routine, interactive):
+        while not supervisor.completed or supervisor.operations:
+            supervisor.operate.acquire()
+
+            while True:
+                try:
+                    operation = supervisor.operations.pop(0)
+                except IndexError:
+                    break
+
+                idlest = min(supervisor.team["idleness"].keys())
+                member = supervisor.team["idleness"][idlest][0]
+                
+                with member.idler:
+                    idleness = member.idleness
+                    supervisor.team["idleness"][idleness].remove(member)
+                    if not supervisor.team["idleness"][idleness]:
+                        del supervisor.team["idleness"][idleness]
+
+                    idleness += operation.weight
+                    if idleness not in supervisor.team["idleness"]:
+                        supervisor.team["idleness"][idleness] = []
+                    supervisor.team["idleness"][idleness].append(member)
+                    member.idleness = idleness
+
+                member.operations.append(operation)
+
+                try:
+                    member.operate.release()
+                except RuntimeError:
+                    pass
+
+        # May be return a log of performance later.
+        
+    def team(self, workers, routine, role, error_handler=None, interactive=False):
+        if self.working:
+            supervisor = Task(self.supervisor, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
+            team = {
+                "members": [],
+                "idleness": {
+                    0: []
+                    }
+            }
+            supervisor.__setattr__("team", team)
+            
+            self.assign(supervisor)
+            self.members[role] = supervisor
+
+            for _ in range(workers):
+                member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
+                member.__setattr__("supervisor", supervisor)
+                member.__setattr__("idleness", 0)
+                member.__setattr__("idler", threading.Lock())
+                self.assign(member)
+
+                supervisor.team["members"].append(member)
+                supervisor.team["idleness"][0].append(member)
 
             return role
         else:
@@ -260,6 +334,11 @@ class Pool:
                         self.waiter.acquire()
                         self.waiter.acquire()
 
+                        try:
+                            self.waiter.release()
+                        except RuntimeError:
+                            pass
+
                         self.assign(task)
         else:
             try:
@@ -356,9 +435,10 @@ class TaskIO(io.TextIOWrapper):
         # truncate()
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, interactive=False): # Should `listeners` also be here?
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, weight=1, interactive=False): # Should `listeners` also be here?
         self.action = target
         self.id = id
+        self.weight = weight
         self.interactive = interactive
         if self.interactive: self.interact()
 

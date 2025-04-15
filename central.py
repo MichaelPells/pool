@@ -52,7 +52,8 @@ class Network:
                     INPUT = self.inputs.pop(0)
                     try:
                         self.sleeper.release()
-                    except: pass
+                    except RuntimeError:
+                        pass
 
             status = INPUT["status"] if "status" in INPUT else "entrypoint"
 
