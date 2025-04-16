@@ -1,5 +1,4 @@
 # Use kwargs in function calls
-# Optimize priority execution: Use something other than max() and dict(). Avoid concurrency issues from multiple assigns too.
 import sys
 import threading
 import io
@@ -43,8 +42,7 @@ class Pool:
         self.idle = []
         self.new_worker_id = 0
         self.members = {}
-        self.queue = {}
-        self.forbiddenpriority: None | int = None
+        self.queue = []
 
     def idler(self, id):
         self.idle.append(id)
@@ -292,20 +290,17 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=0, interactive=False, behaviour=None):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
-                task = Task(target, args, kwargs, error_handler or self.error_handler, priority=priority, interactive=interactive) # Create a Task object
+                task = Task(target, args, kwargs, error_handler or self.error_handler, interactive=interactive) # Create a Task object
             else:
                 task = target
 
             if behaviour:
                 behaviour(task)
 
-            while self.forbiddenpriority == task.priority: pass
-            if task.priority not in self.queue:
-                self.queue[task.priority] = []
-            self.queue[task.priority].append(task)
+            self.queue.append(task)
 
             try:
                 self.queuer.release()
@@ -322,15 +317,8 @@ class Pool:
 
             while True:
                 try:
-                    priority = max(self.queue)
-                    task = self.queue[priority].pop(0)
-
-                    self.forbiddenpriority = priority
-                    if not self.queue[priority]:
-                        del self.queue[priority]
-                    self.forbiddenpriority = None
-
-                except ValueError:
+                    task = self.queue.pop(0)
+                except IndexError:
                     break
 
                 # Looking for an available worker
@@ -477,10 +465,9 @@ class TaskIO(io.TextIOWrapper):
         # truncate()
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, priority=0, weight=1, interactive=False):
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, weight=1, interactive=False):
         self.action = target
         self.id = id
-        self.priority = priority
         self.weight = weight
         self.interactive = interactive
         if self.interactive: self.interact()
