@@ -327,11 +327,15 @@ class Pool:
 
             while True:
                 try:
-                    priority = max(self.priority)
+                    if self.priorityupdated:
+                        priority = max(self.priority) # `ValueError` Exception when `self.priority` is empty.
+                        self.priorityupdated = False
+
                     task = self.queue[priority].pop(0)
 
                     if not self.queue[priority]:
                         del self.priority[priority]
+                        self.priorityupdated = True
 
                 except ValueError:
                     break
