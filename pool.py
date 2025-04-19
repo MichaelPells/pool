@@ -23,7 +23,8 @@ class Pool:
                  nominal_workers=NOMINAL_WORKERS,
                  min_workers=MIN_WORKERS,
                  max_workers=MAX_WORKERS,
-                 error_handler=ERROR_HANDLER
+                 error_handler=ERROR_HANDLER,
+                 prioritylevels=1
                 ):
 
         self.timeout = timeout
@@ -31,6 +32,7 @@ class Pool:
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.error_handler = error_handler
+        self.prioritylevels = prioritylevels
 
         self.queuer = threading.Lock()
         self.prober = threading.Lock()
@@ -43,7 +45,10 @@ class Pool:
         self.idle = []
         self.new_worker_id = 0
         self.members = {}
-        self.queue = {}
+        self.queue = {p: [] for p in range(prioritylevels)}
+        self.priority = {}
+        self.priorityupdated = True
+
         self.forbiddenpriority: None | int = None
 
     def idler(self, id):
@@ -292,7 +297,7 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=0, interactive=False, behaviour=None):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=1, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, priority=priority, interactive=interactive) # Create a Task object
@@ -302,10 +307,10 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
-            while self.forbiddenpriority == task.priority: pass
-            if task.priority not in self.queue:
-                self.queue[task.priority] = []
             self.queue[task.priority].append(task)
+            if task.priority not in self.priority:
+                self.priority[task.priority] = None
+                self.priorityupdated =  True
 
             try:
                 self.queuer.release()
@@ -322,13 +327,11 @@ class Pool:
 
             while True:
                 try:
-                    priority = max(self.queue)
+                    priority = max(self.priority)
                     task = self.queue[priority].pop(0)
 
-                    self.forbiddenpriority = priority
                     if not self.queue[priority]:
-                        del self.queue[priority]
-                    self.forbiddenpriority = None
+                        del self.priority[priority]
 
                 except ValueError:
                     break
