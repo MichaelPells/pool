@@ -48,8 +48,11 @@ class Pool:
         self.queue = {p: [] for p in range(prioritylevels)}
         self.priority = {}
         self.priorityupdated = True
+        self.wait = threading.Lock()
+        self.order = False
+        self.pending = 0
 
-        self.forbiddenpriority: None | int = None
+        self.currentpriority: None | int = None
 
     def idler(self, id):
         self.idle.append(id)
@@ -101,7 +104,7 @@ class Pool:
         except RuntimeError:
             pass
 
-        if self.queue:
+        if self.priority:
             self.stopper1.acquire()
             self.stopper1.acquire()
 
@@ -307,10 +310,28 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
+            case = 0
+            if task.priority == self.currentpriority:
+                case = 1 if self.order else 2
+
+            if case == 1:
+                self.wait.acquire()
+            elif case == 2:
+                self.pending += 1
+
             self.queue[task.priority].append(task)
             if task.priority not in self.priority:
                 self.priority[task.priority] = None
                 self.priorityupdated =  True
+
+            if case == 1:
+                try:
+                    self.wait.release()
+                except RuntimeError:
+                    pass
+            elif case == 2:
+                self.pending -= 1
+                
 
             try:
                 self.queuer.release()
@@ -322,22 +343,31 @@ class Pool:
             raise RuntimeError("Task assigned to a stopped pool.")
 
     def manager(self):
-        while self.working or self.queue:
+        while self.working or self.priority:
             self.queuer.acquire()
 
             while True:
                 try:
                     if self.priorityupdated:
-                        priority = max(self.priority) # `ValueError` Exception when `self.priority` is empty.
+                        priority = self.currentpriority = max(self.priority) # `ValueError` Exception when `self.priority` is empty.
                         self.priorityupdated = False
 
                     task = self.queue[priority].pop(0)
 
                     if not self.queue[priority]:
-                        del self.priority[priority]
-                        self.priorityupdated = True
+                        self.order = True
+                        pending = self.pending
+
+                        if not pending:
+                            while self.pending: pass
+                            with self.wait:
+                                del self.priority[priority]
+                            self.priorityupdated = True
+                        else:
+                            while self.pending >= pending: pass
 
                 except ValueError:
+                    self.currentpriority = None
                     break
 
                 # Looking for an available worker
