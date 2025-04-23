@@ -50,7 +50,7 @@ class Pool:
         self.priorityupdated = True
         self.wait = threading.Lock()
         self.order = False
-        self.pending = 0
+        self.pending = {p: 0 for p in range(prioritylevels)}
 
         self.currentpriority: None | int = None
 
@@ -317,7 +317,7 @@ class Pool:
             if case == 1:
                 self.wait.acquire()
             elif case == 2:
-                self.pending += 1
+                self.pending[task.priority] += 1
 
             self.queue[task.priority].append(task)
             if task.priority not in self.priority:
@@ -330,8 +330,7 @@ class Pool:
                 except RuntimeError:
                     pass
             elif case == 2:
-                self.pending -= 1
-                
+                self.pending[task.priority] -= 1
 
             try:
                 self.queuer.release()
@@ -356,15 +355,19 @@ class Pool:
 
                     if not self.queue[priority]:
                         self.order = True
-                        pending = self.pending
+                        pending = self.pending[priority]
 
                         if not pending:
-                            while self.pending: pass
+                            while self.pending[priority]: pass
                             with self.wait:
-                                del self.priority[priority]
+                                if not self.queue[priority]:
+                                    del self.priority[priority]
+
                             self.priorityupdated = True
                         else:
-                            while self.pending >= pending: pass
+                            while self.pending[priority] >= pending: pass
+
+                        self.order = False
 
                 except ValueError:
                     self.currentpriority = None
