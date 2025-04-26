@@ -48,7 +48,7 @@ class Pool:
         self.queue = {p: [] for p in range(prioritylevels)}
         self.priority = {}
         self.priorityupdated = True
-        self.wait = threading.Event()
+        self.wait = threading.Lock()
         self.order = False
         self.pending = {p: 0 for p in range(prioritylevels)}
 
@@ -310,24 +310,26 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
-            if task.priority == self.currentpriority and self.order:
-                self.wait.wait()
+            case = 0
+            if task.priority == self.currentpriority:
+                case = 1 if self.order else 2
 
-            self.pending[task.priority] += 1
-
-            if task.priority == self.currentpriority and self.order:
-                unlisted = True
-                self.pending[task.priority] -= 1
-                self.wait.wait()
-            else:
-                unlisted = False
+            if case == 1:
+                self.wait.acquire()
+            elif case == 2:
+                self.pending[task.priority] += 1
 
             self.queue[task.priority].append(task)
             if task.priority not in self.priority:
                 self.priority[task.priority] = None
                 self.priorityupdated =  True
 
-            if not unlisted:
+            if case == 1:
+                try:
+                    self.wait.release()
+                except RuntimeError:
+                    pass
+            elif case == 2:
                 self.pending[task.priority] -= 1
 
             try:
@@ -353,14 +355,19 @@ class Pool:
 
                     if not self.queue[priority]:
                         self.order = True
+                        pending = self.pending[priority]
 
-                        while self.pending[priority]: pass
-                        if not self.queue[priority]:
-                            del self.priority[priority]
+                        if not pending:
+                            while self.pending[priority]: pass
+                            with self.wait:
+                                if not self.queue[priority]:
+                                    del self.priority[priority]
+
+                            self.priorityupdated = True
+                        else:
+                            while self.pending[priority] >= pending: pass
 
                         self.order = False
-                        self.wait.set()
-                        self.wait.clear()
 
                 except ValueError:
                     self.currentpriority = None

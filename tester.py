@@ -1,36 +1,56 @@
-from pool import Pool, Task
+# import threading, time
 
-pool = Pool()
-pool.start()
+# event = threading.Event()
 
-def printer(x):
-    print(x)
+# def tester():
+#     print("started")
+#     event.wait()
+#     print("ended")
 
-pool.team(3, printer, "printer")
-pool.assign2("printer", ("hello",))
-pool.stop()
+# threading.Thread(target=tester).start()
+
+# time.sleep(4)
+# event.set()
+# event.clear()
+
+# threading.Thread(target=tester).start()
+
+# time.sleep(4)
+# event.set()
 
 # from pool import Pool, Task
-# import threading
-# import time
 
 # pool = Pool()
 # pool.start()
 
-# def sleeper(task: Task):
-#     print(task.attempts)
+# def printer(x):
+#     print(x)
 
-# task = Task(sleeper, interactive=True)
+# pool.team(3, printer, "printer")
+# pool.assign2("printer", ("hello",))
+# pool.stop()
 
-# def restarter():
-#     if task.attempts < 1000:
-#         task.reset()
-#         pool.assign(task)
-#     else:
-#         threading.Thread(target=pool.stop).start()
-# task.on("completed", restarter)
+from pool import Pool, Task
+import threading
+import time
 
-# pool.assign(task)
+pool = Pool()
+pool.start()
+
+def sleeper(task: Task):
+    print(task.attempts)
+
+task = Task(sleeper, interactive=True)
+
+def restarter():
+    if task.attempts < 1000:
+        task.reset()
+        pool.assign(task)
+    else:
+        threading.Thread(target=pool.stop).start()
+task.on("completed", restarter)
+
+pool.assign(task)
 
 # from pool import Pool, Task
 
