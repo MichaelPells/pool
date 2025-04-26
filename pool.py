@@ -357,6 +357,7 @@ class Pool:
                         while self.pending[priority]: pass
                         if not self.queue[priority]:
                             del self.priority[priority]
+                            self.priorityupdated = True
 
                         self.order = False
                         self.wait.set()
