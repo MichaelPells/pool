@@ -45,14 +45,14 @@ class Pool:
         self.idle = []
         self.new_worker_id = 0
         self.members = {}
-        self.queue = {p: [] for p in range(prioritylevels)}
-        self.priority = {}
-        self.priorityupdated = True
-        self.wait = threading.Event()
-        self.order = False
-        self.pending = {p: 0 for p in range(prioritylevels)}
 
-        self.currentpriority: None | int = None
+        self.queue = {p: [] for p in range(prioritylevels)}
+        self.priorities = {}
+        self.prioritiesupdated = True
+        self.gate = threading.Event()
+        self.restricted = False
+        self.pending = {p: 0 for p in range(prioritylevels)}
+        self.priority: None | int = None
 
     def idler(self, id):
         self.idle.append(id)
@@ -104,7 +104,7 @@ class Pool:
         except RuntimeError:
             pass
 
-        if self.priority:
+        if self.priorities:
             self.stopper1.acquire()
             self.stopper1.acquire()
 
@@ -310,22 +310,22 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
-            if task.priority == self.currentpriority and self.order:
-                self.wait.wait()
+            if task.priority == self.priority and self.restricted:
+                self.gate.wait()
 
             self.pending[task.priority] += 1
 
-            if task.priority == self.currentpriority and self.order:
+            if task.priority == self.priority and self.restricted:
                 unlisted = True
                 self.pending[task.priority] -= 1
-                self.wait.wait()
+                self.gate.wait()
             else:
                 unlisted = False
 
             self.queue[task.priority].append(task)
-            if task.priority not in self.priority:
-                self.priority[task.priority] = None
-                self.priorityupdated =  True
+            if task.priority not in self.priorities:
+                self.priorities[task.priority] = None
+                self.prioritiesupdated =  True
 
             if not unlisted:
                 self.pending[task.priority] -= 1
@@ -340,31 +340,31 @@ class Pool:
             raise RuntimeError("Task assigned to a stopped pool.")
 
     def manager(self):
-        while self.working or self.priority:
+        while self.working or self.priorities:
             self.queuer.acquire()
 
             while True:
                 try:
-                    if self.priorityupdated:
-                        priority = self.currentpriority = max(self.priority) # `ValueError` Exception when `self.priority` is empty.
-                        self.priorityupdated = False
+                    if self.prioritiesupdated:
+                        priority = self.priority = max(self.priorities) # `ValueError` Exception when `self.priorities` is empty.
+                        self.prioritiesupdated = False
 
                     task = self.queue[priority].pop(0)
 
                     if not self.queue[priority]:
-                        self.order = True
+                        self.restricted = True
 
                         while self.pending[priority]: pass
                         if not self.queue[priority]:
-                            del self.priority[priority]
-                            self.priorityupdated = True
+                            del self.priorities[priority]
+                            self.prioritiesupdated = True
 
-                        self.order = False
-                        self.wait.set()
-                        self.wait.clear()
+                        self.restricted = False
+                        self.gate.set()
+                        self.gate.clear()
 
                 except ValueError:
-                    self.currentpriority = None
+                    self.priority = None
                     break
 
                 # Looking for an available worker
