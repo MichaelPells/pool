@@ -1,5 +1,4 @@
 # Use kwargs in function calls
-# Optimize priority execution: Use something other than max() and dict(). Avoid concurrency issues from multiple assigns too.
 import sys
 import threading
 import io
@@ -159,7 +158,7 @@ class Pool:
                 pass
 
     def member(self, member, routine, interactive):
-        while not member.completed or member.operations:
+        while not member.completed or member.priorities:
             member.operate.acquire()
 
             while True:
@@ -225,7 +224,7 @@ class Pool:
             raise RuntimeError("Role assigned within a stopped pool.")
 
     def supervisor(self, supervisor, routine, interactive):
-        while not supervisor.completed or supervisor.operations:
+        while not supervisor.completed or supervisor.priorities:
             supervisor.operate.acquire()
 
             while True:

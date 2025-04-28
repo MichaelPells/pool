@@ -18,17 +18,17 @@
 # time.sleep(4)
 # event.set()
 
-# from pool import Pool, Task
+from pool import Pool, Task
 
-# pool = Pool()
-# pool.start()
+pool = Pool()
+pool.start()
 
-# def printer(x):
-#     print(x)
+def printer(x):
+    print(x)
 
-# pool.team(3, printer, "printer")
-# pool.assign2("printer", ("hello",))
-# pool.stop()
+pool.team(3, printer, "printer")
+pool.assign2("printer", ("hello",))
+pool.stop()
 
 # from pool import Pool, Task
 # import threading
@@ -52,27 +52,27 @@
 
 # pool.assign(task)
 
-from pool import Pool, Task
+# from pool import Pool, Task
 
-pool = Pool()
-pool.start()
+# pool = Pool()
+# pool.start()
 
-def doubler(x):
-    return x * 2
-pool.appoint(doubler, "doubler")
+# def doubler(x):
+#     return x * 2
+# pool.appoint(doubler, "doubler")
 
-operation = pool.assign2("doubler", args=(2,))
-operation.wait()
-print(operation.status)
+# operation = pool.assign2("doubler", args=(2,))
+# operation.wait()
+# print(operation.status)
 
-# pool.assign2("doubler", args=(3,))
-# pool.assign2("doubler", args=(4,))
-# pool.assign2("doubler", args=(5,))
-# pool.assign2("doubler", args=(6,))
-# pool.assign2("doubler", args=(7,))
-# pool.assign2("doubler", args=(8,))
-# pool.assign2("doubler", args=(9,))
-pool.stop()
+# # pool.assign2("doubler", args=(3,))
+# # pool.assign2("doubler", args=(4,))
+# # pool.assign2("doubler", args=(5,))
+# # pool.assign2("doubler", args=(6,))
+# # pool.assign2("doubler", args=(7,))
+# # pool.assign2("doubler", args=(8,))
+# # pool.assign2("doubler", args=(9,))
+# pool.stop()
 
 # from pool import Pool, Task
 # import time
