@@ -63,13 +63,13 @@ class Pool:
         self.new_worker_id = 0
         self.members = {}
 
-        self.queue = {p: [] for p in range(prioritylevels)}
+        self.queue = {p: [] for p in range(self.prioritylevels)}
         self.priorities = {}
         self.prioritiesupdated = True
-        self.access = Access(self)
         self.restricted = False
-        self.pending = {p: 0 for p in range(prioritylevels)}
-        self.priority: None | int = None
+        self.access = Access(self)
+        self.pending = {p: 0 for p in range(self.prioritylevels)}
+        self.focus: None | int = None
 
     def idler(self, id):
         self.idle.append(id)
@@ -164,8 +164,24 @@ class Pool:
 
             while True:
                 try:
-                    operation = member.operations.pop(0)
-                except IndexError:
+                    if member.prioritiesupdated:
+                        focus = member.focus = max(member.priorities) # `ValueError` Exception when `member.priorities` is empty.
+                        member.prioritiesupdated = False
+
+                    operation = member.operations[focus].pop(0)
+
+                    if not member.operations[focus]:
+                        member.access.close()
+
+                        while member.pending[focus]: pass
+                        if not member.operations[focus]:
+                            del member.priorities[focus]
+                            member.prioritiesupdated = True
+
+                        member.access.open()
+
+                except ValueError:
+                    member.focus = None
                     break
 
                 try:
@@ -191,8 +207,16 @@ class Pool:
     def appoint(self, routine, role, error_handler=None, interactive=False):
         if self.working:
             member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
-            member.__setattr__("operations", [])
+
             member.__setattr__("operate", threading.Lock())
+            member.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+            member.__setattr__("priorities", {})
+            member.__setattr__("prioritiesupdated", True)
+            member.__setattr__("restricted", False)
+            member.__setattr__("access", Access(member))
+            member.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+            member.__setattr__("focus", None)
+
             self.assign(member)
             self.members[role] = member
 
@@ -206,8 +230,24 @@ class Pool:
 
             while True:
                 try:
-                    operation = supervisor.operations.pop(0)
-                except IndexError:
+                    if supervisor.prioritiesupdated:
+                        focus = supervisor.focus = max(supervisor.priorities) # `ValueError` Exception when `supervisor.priorities` is empty.
+                        supervisor.prioritiesupdated = False
+
+                    operation = supervisor.operations[focus].pop(0)
+
+                    if not supervisor.operations[focus]:
+                        supervisor.access.close()
+
+                        while supervisor.pending[focus]: pass
+                        if not supervisor.operations[focus]:
+                            del supervisor.priorities[focus]
+                            supervisor.prioritiesupdated = True
+
+                        supervisor.access.open()
+
+                except ValueError:
+                    supervisor.focus = None
                     break
 
                 idlest = min(supervisor.team["idleness"].keys())
@@ -225,7 +265,25 @@ class Pool:
                     supervisor.team["idleness"][idleness].append(member)
                     member.idleness = idleness
 
-                member.operations.append(operation)
+                if operation.priority == member.focus:
+                    member.access.request()
+
+                member.pending[operation.priority] += 1 # Enlisting
+
+                if operation.priority == member.focus and member.restricted:
+                    unlisted = True
+                    member.pending[operation.priority] -= 1
+                    member.access.wait()
+                else:
+                    unlisted = False
+
+                member.operations[operation.priority].append(operation)
+                if operation.priority not in member.priorities:
+                    member.priorities[operation.priority] = None
+                    member.prioritiesupdated = True
+
+                if not unlisted:
+                    member.pending[operation.priority] -= 1
 
                 try:
                     member.operate.release()
@@ -237,14 +295,21 @@ class Pool:
     def team(self, workers, routine, role, error_handler=None, interactive=False):
         if self.working:
             supervisor = Task(self.supervisor, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
-            supervisor.__setattr__("operations", [])
-            supervisor.__setattr__("operate", threading.Lock())
+
             supervisor.__setattr__("team", {
                 "members": [],
                 "idleness": {
                     0: []
                     }
             })
+            supervisor.__setattr__("operate", threading.Lock())
+            supervisor.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+            supervisor.__setattr__("priorities", {})
+            supervisor.__setattr__("prioritiesupdated", True)
+            supervisor.__setattr__("restricted", False)
+            supervisor.__setattr__("access", Access(supervisor))
+            supervisor.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+            supervisor.__setattr__("focus", None)
 
             def dissolver():
                 for member in supervisor.team["members"]:
@@ -260,11 +325,19 @@ class Pool:
 
             for n in range(workers):
                 member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=f"{role}-{n}", interactive=True)
-                member.__setattr__("operations", [])
-                member.__setattr__("operate", threading.Lock())
+
                 member.__setattr__("supervisor", supervisor)
                 member.__setattr__("idleness", 0)
                 member.__setattr__("idler", threading.Lock())
+                member.__setattr__("operate", threading.Lock())
+                member.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+                member.__setattr__("priorities", {})
+                member.__setattr__("prioritiesupdated", True)
+                member.__setattr__("restricted", False)
+                member.__setattr__("access", Access(member))
+                member.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+                member.__setattr__("focus", None)
+
                 self.assign(member)
 
                 supervisor.team["members"].append(member)
@@ -294,17 +367,35 @@ class Pool:
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
 
-    def assign2(self, role, args=(), kwargs={}, behaviour=None):
+    def assign2(self, role, args=(), kwargs={}, priority=0, behaviour=None):
         if self.working:
             if role in self.members:
                 member = self.members[role]
                 member_params = member.parameters["args"]
-                operation = Task(member_params[0], args, kwargs, interactive=member_params[1])
+                operation = Task(member_params[0], args, kwargs, priority=priority, interactive=member_params[1])
 
                 if behaviour:
                     behaviour(operation)
 
-                member.operations.append(operation)
+                if operation.priority == member.focus:
+                    member.access.request()
+
+                member.pending[operation.priority] += 1 # Enlisting
+
+                if operation.priority == member.focus and member.restricted:
+                    unlisted = True
+                    member.pending[operation.priority] -= 1
+                    member.access.wait()
+                else:
+                    unlisted = False
+
+                member.operations[operation.priority].append(operation)
+                if operation.priority not in member.priorities:
+                    member.priorities[operation.priority] = None
+                    member.prioritiesupdated = True
+
+                if not unlisted:
+                    member.pending[operation.priority] -= 1
 
                 try:
                     member.operate.release()
@@ -317,7 +408,7 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=1, interactive=False, behaviour=None):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=0, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, priority=priority, interactive=interactive) # Create a Task object
@@ -327,12 +418,12 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
-            if task.priority == self.priority:
+            if task.priority == self.focus:
                 self.access.request()
 
             self.pending[task.priority] += 1 # Enlisting
 
-            if task.priority == self.priority and self.restricted:
+            if task.priority == self.focus and self.restricted:
                 unlisted = True
                 self.pending[task.priority] -= 1
                 self.access.wait()
@@ -342,7 +433,7 @@ class Pool:
             self.queue[task.priority].append(task)
             if task.priority not in self.priorities:
                 self.priorities[task.priority] = None
-                self.prioritiesupdated =  True
+                self.prioritiesupdated = True
 
             if not unlisted:
                 self.pending[task.priority] -= 1
@@ -363,24 +454,23 @@ class Pool:
             while True:
                 try:
                     if self.prioritiesupdated:
-                        priority = self.priority = max(self.priorities) # `ValueError` Exception when `self.priorities` is empty.
+                        focus = self.focus = max(self.priorities) # `ValueError` Exception when `self.priorities` is empty.
                         self.prioritiesupdated = False
 
-                    task = self.queue[priority].pop(0)
+                    task = self.queue[focus].pop(0)
 
-                    if not self.queue[priority]:
+                    if not self.queue[focus]:
                         self.access.close()
 
-                        while self.pending[priority]: pass
-                        if not self.queue[priority]:
-                            del self.priorities[priority]
+                        while self.pending[focus]: pass
+                        if not self.queue[focus]:
+                            del self.priorities[focus]
                             self.prioritiesupdated = True
 
-                        self.restricted = False
                         self.access.open()
 
                 except ValueError:
-                    self.priority = None
+                    self.focus = None
                     break
 
                 # Looking for an available worker

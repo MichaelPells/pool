@@ -30,49 +30,49 @@
 # pool.assign2("printer", ("hello",))
 # pool.stop()
 
-from pool import Pool, Task
-import threading
-import time
-
-pool = Pool()
-pool.start()
-
-def sleeper(task: Task):
-    print(task.attempts)
-
-task = Task(sleeper, interactive=True)
-
-def restarter():
-    if task.attempts < 1000:
-        task.reset()
-        pool.assign(task)
-    else:
-        threading.Thread(target=pool.stop).start()
-task.on("completed", restarter)
-
-pool.assign(task)
-
 # from pool import Pool, Task
+# import threading
+# import time
 
 # pool = Pool()
 # pool.start()
 
-# def doubler(x):
-#     return x * 2
-# pool.appoint(doubler, "doubler")
+# def sleeper(task: Task):
+#     print(task.attempts)
 
-# operation = pool.assign2("doubler", args=(2,))
-# operation.wait()
-# print(operation.status)
+# task = Task(sleeper, interactive=True)
 
-# # pool.assign2("doubler", args=(3,))
-# # pool.assign2("doubler", args=(4,))
-# # pool.assign2("doubler", args=(5,))
-# # pool.assign2("doubler", args=(6,))
-# # pool.assign2("doubler", args=(7,))
-# # pool.assign2("doubler", args=(8,))
-# # pool.assign2("doubler", args=(9,))
-# pool.stop()
+# def restarter():
+#     if task.attempts < 1000:
+#         task.reset()
+#         pool.assign(task)
+#     else:
+#         threading.Thread(target=pool.stop).start()
+# task.on("completed", restarter)
+
+# pool.assign(task)
+
+from pool import Pool, Task
+
+pool = Pool()
+pool.start()
+
+def doubler(x):
+    return x * 2
+pool.appoint(doubler, "doubler")
+
+operation = pool.assign2("doubler", args=(2,))
+operation.wait()
+print(operation.status)
+
+# pool.assign2("doubler", args=(3,))
+# pool.assign2("doubler", args=(4,))
+# pool.assign2("doubler", args=(5,))
+# pool.assign2("doubler", args=(6,))
+# pool.assign2("doubler", args=(7,))
+# pool.assign2("doubler", args=(8,))
+# pool.assign2("doubler", args=(9,))
+pool.stop()
 
 # from pool import Pool, Task
 # import time
