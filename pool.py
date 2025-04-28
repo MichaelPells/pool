@@ -5,6 +5,23 @@ import threading
 import io
 import os
 
+class Access(threading.Event):
+    def __init__(self, resource):
+        super().__init__()
+        self.resource = resource
+    
+    def close(self):
+        self.resource.restricted = True
+
+    def open(self):
+        self.resource.restricted = False
+        self.set()
+        self.clear()
+
+    def request(self):
+        if self.resource.restricted:
+            self.wait()
+
 TIMEOUT = 60
 NOMINAL_WORKERS = 5
 MIN_WORKERS = 2
@@ -49,7 +66,7 @@ class Pool:
         self.queue = {p: [] for p in range(prioritylevels)}
         self.priorities = {}
         self.prioritiesupdated = True
-        self.gate = threading.Event()
+        self.access = Access(self)
         self.restricted = False
         self.pending = {p: 0 for p in range(prioritylevels)}
         self.priority: None | int = None
@@ -310,15 +327,15 @@ class Pool:
             if behaviour:
                 behaviour(task)
 
-            if task.priority == self.priority and self.restricted:
-                self.gate.wait()
+            if task.priority == self.priority:
+                self.access.request()
 
-            self.pending[task.priority] += 1
+            self.pending[task.priority] += 1 # Enlisting
 
             if task.priority == self.priority and self.restricted:
                 unlisted = True
                 self.pending[task.priority] -= 1
-                self.gate.wait()
+                self.access.wait()
             else:
                 unlisted = False
 
@@ -352,7 +369,7 @@ class Pool:
                     task = self.queue[priority].pop(0)
 
                     if not self.queue[priority]:
-                        self.restricted = True
+                        self.access.close()
 
                         while self.pending[priority]: pass
                         if not self.queue[priority]:
@@ -360,8 +377,7 @@ class Pool:
                             self.prioritiesupdated = True
 
                         self.restricted = False
-                        self.gate.set()
-                        self.gate.clear()
+                        self.access.open()
 
                 except ValueError:
                     self.priority = None
