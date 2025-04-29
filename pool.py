@@ -53,8 +53,8 @@ class Pool:
 
         self.queuer = threading.Lock()
         self.prober = threading.Lock()
-        self.waiter = threading.Lock()
-        self.stopper1 = threading.Lock()
+        self.waiter = threading.Event()
+        self.stopper1 = threading.Event()
         self.stopper2 = threading.Lock()
 
         self.working = False
@@ -75,10 +75,8 @@ class Pool:
         self.idle.append(id)
 
         # Unlock assign
-        try:
-            self.waiter.release()
-        except RuntimeError:
-            pass
+        self.waiter.set()
+        self.waiter.clear()
 
         # Unlock stop
         try:
@@ -116,8 +114,6 @@ class Pool:
         if resumed:
             threading.Thread(target=self.manager).start()
 
-        return self.new_worker_id # What should we really return?
-
     def stop(self):
         self.working = False
 
@@ -127,13 +123,7 @@ class Pool:
             pass
 
         if self.priorities:
-            self.stopper1.acquire()
-            self.stopper1.acquire()
-
-            try:
-                self.stopper1.release()
-            except RuntimeError:
-                pass
+            self.stopper1.wait()
 
         for role in dict(self.members):
             self.terminate(role)
@@ -149,10 +139,9 @@ class Pool:
                     worker = self.workers[id]
 
                     if not worker.task: # Be sure `stop()` was not called between a task assignment and worker unlock.
-                        try:
-                            worker.lock.release() # Unlock worker
-                        except RuntimeError:
-                            pass
+                        # Unlock worker
+                        worker.lock.set()
+                        worker.lock.clear()
 
                         self.idle.remove(id)
                         del self.workers[id]
@@ -175,16 +164,6 @@ class Pool:
 
                     operation = member.operations[focus].pop(0)
 
-                    if not member.operations[focus]:
-                        member.access.close()
-
-                        while member.pending[focus]: pass
-                        if not member.operations[focus]:
-                            del member.priorities[focus]
-                            member.prioritiesupdated = True
-
-                        member.access.open()
-
                 except ValueError:
                     member.focus = None
                     break
@@ -206,6 +185,16 @@ class Pool:
                                 member.supervisor.team["idleness"][idleness] = []
                             member.supervisor.team["idleness"][idleness].append(member)
                             member.idleness = idleness
+
+                if not member.operations[focus]:
+                    member.access.close()
+
+                    while member.pending[focus]: pass
+                    if not member.operations[focus]:
+                        del member.priorities[focus]
+                        member.prioritiesupdated = True
+
+                    member.access.open()
 
         # May be return a log of performance later.
 
@@ -240,16 +229,6 @@ class Pool:
                         supervisor.prioritiesupdated = False
 
                     operation = supervisor.operations[focus].pop(0)
-
-                    if not supervisor.operations[focus]:
-                        supervisor.access.close()
-
-                        while supervisor.pending[focus]: pass
-                        if not supervisor.operations[focus]:
-                            del supervisor.priorities[focus]
-                            supervisor.prioritiesupdated = True
-
-                        supervisor.access.open()
 
                 except ValueError:
                     supervisor.focus = None
@@ -294,6 +273,16 @@ class Pool:
                     member.operate.release()
                 except RuntimeError:
                     pass
+
+                if not supervisor.operations[focus]:
+                    supervisor.access.close()
+
+                    while supervisor.pending[focus]: pass
+                    if not supervisor.operations[focus]:
+                        del supervisor.priorities[focus]
+                        supervisor.prioritiesupdated = True
+
+                    supervisor.access.open()
 
         # May be return a log of performance later.
         
@@ -464,16 +453,6 @@ class Pool:
 
                     task = self.queue[focus].pop(0)
 
-                    if not self.queue[focus]:
-                        self.access.close()
-
-                        while self.pending[focus]: pass
-                        if not self.queue[focus]:
-                            del self.priorities[focus]
-                            self.prioritiesupdated = True
-
-                        self.access.open()
-
                 except ValueError:
                     self.focus = None
                     break
@@ -490,10 +469,10 @@ class Pool:
                         worker = self.workers[self.idle[n]]
                         if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
                             worker.task = task # Assign the task to this worker
-                            try:
-                                worker.lock.release() # Unlock worker
-                            except RuntimeError:
-                                pass
+
+                            # Unlock worker
+                            worker.lock.set()
+                            worker.lock.clear()
 
                             # Taking a peep into `idle` for the next worker.
                             # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
@@ -512,26 +491,32 @@ class Pool:
                         new_worker_id = self.hire() # Create a new worker
                         worker = self.workers[new_worker_id]
                         worker.task = task # Assign the task to this worker
-                        try:
-                            worker.lock.release() # Unlock worker
-                        except RuntimeError:
-                            pass
-                    else:
-                        # Wait for `idle` to be updated.
-                        self.waiter.acquire()
-                        self.waiter.acquire()
 
-                        try:
-                            self.waiter.release()
-                        except RuntimeError:
-                            pass
+                        # Unlock worker
+                        worker.lock.set()
+                        worker.lock.clear()
+                    else: # Something is wrong here! Stop doesn't work.
+                        self.waiter.wait() # Wait for `idle` to be updated.
 
-                        self.assign(task)
+                        worker = self.workers[self.idle[0]]
+                        worker.task = task # Assign the task to this worker
+
+                        # Unlock worker
+                        worker.lock.set()
+                        worker.lock.clear()
+
+                if not self.queue[focus]:
+                    self.access.close()
+
+                    while self.pending[focus]: pass
+                    if not self.queue[focus]:
+                        del self.priorities[focus]
+                        self.prioritiesupdated = True
+
+                    self.access.open()
         else:
-            try:
-                self.stopper1.release()
-            except RuntimeError:
-                pass
+            self.stopper1.set()
+            self.stopper1.clear()
 
 
 class Worker(threading.Thread):
@@ -543,13 +528,13 @@ class Worker(threading.Thread):
 
         self.new = True
         self.task: Task = None
-        self.lock = threading.Lock()
+        self.lock = threading.Event()
         self.timed_out = False
 
     def run(self):
         while self.pool.working or self.pool.priorities or self.task: # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
             # Wait for task to be assigned, and worker unlocked.
-            locked = self.lock.acquire(timeout=TIMEOUT)
+            locked = self.lock.wait(timeout=TIMEOUT)
             log(f'{self.id} lock: {locked}')
 
             # Handle timeout.
@@ -651,8 +636,7 @@ class Task:
         self.completed = False
         self.status = "pending"
 
-        self.lock = threading.Lock()
-        self.lock.acquire()
+        self.lock = threading.Event()
 
     def reset(self):
         self.result = None
@@ -660,7 +644,7 @@ class Task:
         self.completed = False
         self.status = "pending"
 
-        self.lock.acquire()
+        self.lock.clear()
 
     def __call__(self):
         self.attempts += 1
@@ -673,12 +657,12 @@ class Task:
                 self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
         except Exception as error:
             self.fails += 1
-            self.lock.release()
+            self.lock.set()
             self.setstatus("failed")
             raise error
         else:
             self.completes += 1
-            self.lock.release()
+            self.lock.set()
             self.setstatus("completed")
 
     def interact(self):
@@ -722,13 +706,13 @@ class Task:
 
     def wait(self, timeout=None):
         if timeout == None:
-            return self.lock.acquire()
+            return self.lock.wait()
         else:
-            return self.lock.acquire(timeout=timeout)
+            return self.lock.wait(timeout=timeout)
 
     def getresult(self):
-        with self.lock:
-            return self.result
+        self.lock.wait()
+        return self.result
 
 def log(msg):
     if __name__ == "__main__":

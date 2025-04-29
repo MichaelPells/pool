@@ -7,7 +7,7 @@ class Network:
         self.app = app
 
         self.pool = Pool()
-        self.sleeper = threading.Lock()
+        self.sleeper = threading.Event()
         self.ready = True
 
         self.nodes = {}
@@ -22,9 +22,8 @@ class Network:
         while not self.ready: pass
         self.inputs.append(input)
 
-        try:
-            self.sleeper.release()
-        except: pass
+        self.sleeper.set()
+        self.sleeper.clear()
 
     def newnode(self, routine, name):
         self.nodes[name] = routine
@@ -46,15 +45,9 @@ class Network:
                 try:
                     INPUT = self.inputs.pop(0)
                 except IndexError:
-                    self.sleeper.acquire()
                     self.ready = True
-                    self.sleeper.acquire()
+                    self.sleeper.wait()
                     INPUT = self.inputs.pop(0)
-
-                    try:
-                        self.sleeper.release()
-                    except RuntimeError:
-                        pass
 
             status = INPUT["status"] if "status" in INPUT else "entrypoint"
 
@@ -174,7 +167,7 @@ class Instance:
                 })
             operation.once("completed", do)
 
-        operation = self.network.pool.assign2(node, (), data, behaviour)
+        operation = self.network.pool.assign2(node, (), data, behaviour=behaviour)
         return operation
 
 
