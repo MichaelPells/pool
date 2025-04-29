@@ -25,6 +25,7 @@ TIMEOUT = 60
 NOMINAL_WORKERS = 5
 MIN_WORKERS = 2
 MAX_WORKERS = 1000
+PRIORITY_LEVELS = 2
 
 def ERROR_HANDLER(error, target, *args, **kwargs):
     sys.stderr.write(f'''An error occurred while handling a task.
@@ -40,7 +41,7 @@ class Pool:
                  min_workers=MIN_WORKERS,
                  max_workers=MAX_WORKERS,
                  error_handler=ERROR_HANDLER,
-                 prioritylevels=1
+                 priority_levels=PRIORITY_LEVELS
                 ):
 
         self.timeout = timeout
@@ -48,7 +49,7 @@ class Pool:
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.error_handler = error_handler
-        self.prioritylevels = prioritylevels
+        self.priority_levels = priority_levels
 
         self.queuer = threading.Lock()
         self.prober = threading.Lock()
@@ -62,12 +63,12 @@ class Pool:
         self.new_worker_id = 0
         self.members = {}
 
-        self.queue = {p: [] for p in range(self.prioritylevels)}
+        self.queue = {p: [] for p in range(self.priority_levels)}
         self.priorities = {}
         self.prioritiesupdated = True
         self.restricted = False
         self.access = Access(self)
-        self.pending = {p: 0 for p in range(self.prioritylevels)}
+        self.pending = {p: 0 for p in range(self.priority_levels)}
         self.focus: None | int = None
 
     def idler(self, id):
@@ -123,7 +124,7 @@ class Pool:
         if self.priorities:
             self.stopper1.acquire()
             self.stopper1.acquire()
-
+            print("here")
             try:
                 self.stopper1.release()
             except RuntimeError:
@@ -208,12 +209,12 @@ class Pool:
             member = Task(self.member, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
 
             member.__setattr__("operate", threading.Lock())
-            member.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+            member.__setattr__("operations", {p: [] for p in range(self.priority_levels)})
             member.__setattr__("priorities", {})
             member.__setattr__("prioritiesupdated", True)
             member.__setattr__("restricted", False)
             member.__setattr__("access", Access(member))
-            member.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+            member.__setattr__("pending", {p: 0 for p in range(self.priority_levels)})
             member.__setattr__("focus", None)
 
             self.assign(member)
@@ -302,12 +303,12 @@ class Pool:
                     }
             })
             supervisor.__setattr__("operate", threading.Lock())
-            supervisor.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+            supervisor.__setattr__("operations", {p: [] for p in range(self.priority_levels)})
             supervisor.__setattr__("priorities", {})
             supervisor.__setattr__("prioritiesupdated", True)
             supervisor.__setattr__("restricted", False)
             supervisor.__setattr__("access", Access(supervisor))
-            supervisor.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+            supervisor.__setattr__("pending", {p: 0 for p in range(self.priority_levels)})
             supervisor.__setattr__("focus", None)
 
             def dissolver():
@@ -329,12 +330,12 @@ class Pool:
                 member.__setattr__("idleness", 0)
                 member.__setattr__("idler", threading.Lock())
                 member.__setattr__("operate", threading.Lock())
-                member.__setattr__("operations", {p: [] for p in range(self.prioritylevels)})
+                member.__setattr__("operations", {p: [] for p in range(self.priority_levels)})
                 member.__setattr__("priorities", {})
                 member.__setattr__("prioritiesupdated", True)
                 member.__setattr__("restricted", False)
                 member.__setattr__("access", Access(member))
-                member.__setattr__("pending", {p: 0 for p in range(self.prioritylevels)})
+                member.__setattr__("pending", {p: 0 for p in range(self.priority_levels)})
                 member.__setattr__("focus", None)
 
                 self.assign(member)
@@ -366,7 +367,7 @@ class Pool:
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
 
-    def assign2(self, role, args=(), kwargs={}, priority=0, behaviour=None):
+    def assign2(self, role, args=(), kwargs={}, priority=1, behaviour=None):
         if self.working:
             if role in self.members:
                 member = self.members[role]
@@ -407,7 +408,7 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=0, interactive=False, behaviour=None):
+    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=1, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, priority=priority, interactive=interactive) # Create a Task object
@@ -616,7 +617,7 @@ class TaskIO(io.TextIOWrapper):
         # truncate()
 
 class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, priority=0, weight=1, interactive=False):
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, priority=1, weight=1, interactive=False):
         self.action = target
         self.id = id
         self.priority = priority

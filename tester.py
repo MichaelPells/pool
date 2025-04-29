@@ -18,16 +18,29 @@
 # time.sleep(4)
 # event.set()
 
+# from pool import Pool, Task
+
+# pool = Pool()
+# pool.start()
+
+# def printer(x):
+#     print(x)
+
+# pool.team(3, printer, "printer")
+# pool.assign2("printer", ("hello",))
+# pool.stop()
+
 from pool import Pool, Task
 
-pool = Pool()
+pool = Pool(priority_levels=7)
 pool.start()
 
-def printer(x):
-    print(x)
+def printer(p, n):
+    print(f"{p} - {n}")
 
-pool.team(3, printer, "printer")
-pool.assign2("printer", ("hello",))
+for n in range(100):
+    priority = n % 7
+    pool.assign(printer, priority=priority, args=(priority, n))
 pool.stop()
 
 # from pool import Pool, Task
