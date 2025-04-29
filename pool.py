@@ -90,6 +90,17 @@ class Pool:
     def unidler(self, id):
         self.idle.remove(id)
 
+    def hire(self, workers=1):
+        for _ in range(workers):
+            self.new_worker_id += 1
+            worker = Worker(self, self.new_worker_id)
+            worker.start()
+
+            self.workers[self.new_worker_id] = worker
+            self.idle.append(self.new_worker_id)
+
+        return self.new_worker_id
+
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
         if not workers:
             workers = self.nominal_workers
@@ -100,18 +111,12 @@ class Pool:
         else:
             resumed = False
 
-        for _ in range(workers):
-            self.new_worker_id += 1
-            worker = Worker(self, self.new_worker_id)
-            worker.start()
-
-            self.workers[self.new_worker_id] = worker
-            self.idle.append(self.new_worker_id)
+        self.hire(workers)
 
         if resumed:
             threading.Thread(target=self.manager).start()
 
-        return self.new_worker_id
+        return self.new_worker_id # What should we really return?
 
     def stop(self):
         self.working = False
@@ -124,7 +129,7 @@ class Pool:
         if self.priorities:
             self.stopper1.acquire()
             self.stopper1.acquire()
-            print("here")
+
             try:
                 self.stopper1.release()
             except RuntimeError:
@@ -498,13 +503,13 @@ class Pool:
                                 self.idle[n + 1]
                             except IndexError:
                                 if len(self.workers) < MAX_WORKERS:
-                                    self.start(1)
+                                    self.hire()
 
                             break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
                     if len(self.workers) < MAX_WORKERS:
-                        new_worker_id = self.start(1) # Create a new worker
+                        new_worker_id = self.hire() # Create a new worker
                         worker = self.workers[new_worker_id]
                         worker.task = task # Assign the task to this worker
                         try:
@@ -542,7 +547,7 @@ class Worker(threading.Thread):
         self.timed_out = False
 
     def run(self):
-        while self.pool.working or self.task: # If pool is still working, or a rare case where task has been assigned between `idler()` call and `stop()` call.
+        while self.pool.working or self.pool.priorities or self.task: # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
             # Wait for task to be assigned, and worker unlocked.
             locked = self.lock.acquire(timeout=TIMEOUT)
             log(f'{self.id} lock: {locked}')
