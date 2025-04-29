@@ -495,7 +495,7 @@ class Pool:
                         # Unlock worker
                         worker.lock.set()
                         worker.lock.clear()
-                    else: # Something is wrong here! Stop doesn't work.
+                    else:
                         self.waiter.wait() # Wait for `idle` to be updated.
 
                         worker = self.workers[self.idle[0]]
