@@ -60,7 +60,7 @@ class Pool:
         self.working = False
         self.workers = {}
         self.idle = []
-        self.new_worker_id = 0
+        self.size = 0
         self.members = {}
 
         self.queue = {p: [] for p in range(self.priority_levels)}
@@ -90,14 +90,14 @@ class Pool:
 
     def hire(self, workers=1):
         for _ in range(workers):
-            self.new_worker_id += 1
-            worker = Worker(self, self.new_worker_id)
+            self.size += 1
+            worker = Worker(self, self.size)
             worker.start()
 
-            self.workers[self.new_worker_id] = worker
-            self.idle.append(self.new_worker_id)
+            self.workers[self.size] = worker
+            self.idle.append(self.size)
 
-        return self.new_worker_id
+        return self.size
 
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
         if not workers:
@@ -474,15 +474,16 @@ class Pool:
                             worker.lock.set()
                             worker.lock.clear()
 
-                            # Taking a peep into `idle` for the next worker.
-                            # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
-                            # Create a new worker if none.
-                            # This ensures there is always at least 1 available worker for the next incoming task.
-                            try:
-                                self.idle[n + 1]
-                            except IndexError:
-                                if len(self.workers) < MAX_WORKERS:
-                                    self.hire()
+                            if self.working or self.priorities:
+                                # Taking a peep into `idle` for the next worker.
+                                # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
+                                # Create a new worker if none.
+                                # This ensures there is always at least 1 available worker for the next incoming task.
+                                try:
+                                    self.idle[n + 1]
+                                except IndexError:
+                                    if len(self.workers) < MAX_WORKERS:
+                                        self.hire()
 
                             break
                         n += 1
