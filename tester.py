@@ -27,7 +27,7 @@
 #     print(x)
 
 # pool.team(3, printer, "printer")
-# pool.assign2("printer", ("hello",))
+# pool.assign("printer", ("hello",))
 # pool.stop()
 
 from pool import Pool, Task
@@ -40,7 +40,7 @@ def printer(p, n):
 
 for n in range(100):
     priority = n % 7
-    pool.assign(printer, priority=priority, args=(priority, n))
+    pool.execute(printer, priority=priority, args=(priority, n))
 pool.stop()
 
 # from pool import Pool, Task
@@ -58,12 +58,12 @@ pool.stop()
 # def restarter():
 #     if task.attempts < 1000:
 #         task.reset()
-#         pool.assign(task)
+#         pool.execute(task)
 #     else:
 #         threading.Thread(target=pool.stop).start()
 # task.on("completed", restarter)
 
-# pool.assign(task)
+# pool.execute(task)
 
 # from pool import Pool, Task
 
@@ -74,17 +74,17 @@ pool.stop()
 #     return x * 2
 # pool.appoint(doubler, "doubler")
 
-# operation = pool.assign2("doubler", args=(2,))
+# operation = pool.assign("doubler", args=(2,))
 # operation.wait()
 # print(operation.status)
 
-# # pool.assign2("doubler", args=(3,))
-# # pool.assign2("doubler", args=(4,))
-# # pool.assign2("doubler", args=(5,))
-# # pool.assign2("doubler", args=(6,))
-# # pool.assign2("doubler", args=(7,))
-# # pool.assign2("doubler", args=(8,))
-# # pool.assign2("doubler", args=(9,))
+# # pool.assign("doubler", args=(3,))
+# # pool.assign("doubler", args=(4,))
+# # pool.assign("doubler", args=(5,))
+# # pool.assign("doubler", args=(6,))
+# # pool.assign("doubler", args=(7,))
+# # pool.assign("doubler", args=(8,))
+# # pool.assign("doubler", args=(9,))
 # pool.stop()
 
 # from pool import Pool, Task

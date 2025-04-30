@@ -74,7 +74,7 @@ class Pool:
     def idler(self, id):
         self.idle.append(id)
 
-        # Unlock assign
+        # Unlock execute
         self.waiter.set()
         self.waiter.clear()
 
@@ -211,7 +211,7 @@ class Pool:
             member.__setattr__("pending", {p: 0 for p in range(self.priority_levels)})
             member.__setattr__("focus", None)
 
-            self.assign(member)
+            self.execute(member)
             self.members[role] = member
 
             return role
@@ -285,7 +285,7 @@ class Pool:
                     supervisor.access.open()
 
         # May be return a log of performance later.
-        
+
     def team(self, workers, routine, role, error_handler=None, interactive=False):
         if self.working:
             supervisor = Task(self.supervisor, args=(routine, interactive), error_handler=error_handler, id=role, interactive=True)
@@ -314,7 +314,7 @@ class Pool:
                         pass
             supervisor.once("completed", dissolver)
 
-            self.assign(supervisor)
+            self.execute(supervisor)
             self.members[role] = supervisor
 
             for n in range(workers):
@@ -332,7 +332,7 @@ class Pool:
                 member.__setattr__("pending", {p: 0 for p in range(self.priority_levels)})
                 member.__setattr__("focus", None)
 
-                self.assign(member)
+                self.execute(member)
 
                 supervisor.team["members"].append(member)
                 supervisor.team["idleness"][0].append(member)
@@ -361,7 +361,7 @@ class Pool:
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
 
-    def assign2(self, role, args=(), kwargs={}, priority=1, behaviour=None):
+    def assign(self, role, args=(), kwargs={}, priority=1, behaviour=None):
         if self.working:
             if role in self.members:
                 member = self.members[role]
@@ -402,7 +402,7 @@ class Pool:
         else:
             raise RuntimeError("Operation assigned within a stopped pool.")
 
-    def assign(self, target, args=(), kwargs={}, error_handler=None, priority=1, interactive=False, behaviour=None):
+    def execute(self, target, args=(), kwargs={}, error_handler=None, priority=1, interactive=False, behaviour=None):
         if self.working:
             if not isinstance(target, Task):
                 task = Task(target, args, kwargs, error_handler or self.error_handler, priority=priority, interactive=interactive) # Create a Task object
@@ -746,85 +746,85 @@ if __name__ == "__main__":
     print(pool.workers)
     print(pool.idle)
 
-    # pool.assign(sleeper, [25])
+    # pool.execute(sleeper, [25])
     
-    # pool.assign(sleeper, [20])
+    # pool.execute(sleeper, [20])
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
-    # pool.assign(printer)
+    # pool.execute(printer)
     
 
     # time.sleep(10)
@@ -853,7 +853,7 @@ if __name__ == "__main__":
     task.on("started", statuser)
     task.on("completed", statuser)
 
-    pool.assign(task)
+    pool.execute(task)
     task.stdin.write("Hello\n")
     task.stdin.flush()
     print(task.stdout.readline())

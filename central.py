@@ -147,7 +147,7 @@ class Instance:
             })
         task.once("completed", do)
 
-        self.network.pool.assign(task)
+        self.network.pool.execute(task)
         return task
 
     def nodeon(self, node, data, next):
@@ -167,7 +167,7 @@ class Instance:
                 })
             operation.once("completed", do)
 
-        operation = self.network.pool.assign2(node, (), data, behaviour=behaviour)
+        operation = self.network.pool.assign(node, (), data, behaviour=behaviour)
         return operation
 
 
