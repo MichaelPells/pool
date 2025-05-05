@@ -361,12 +361,12 @@ class Pool:
         else:
             raise RuntimeError(f"Attempted to terminate an unidentified role ({role}).")
 
-    def assign(self, role, args=(), kwargs={}, priority=1, behaviour=None):
+    def assign(self, role, Input, priority=1, behaviour=None):
         if self.working:
             if role in self.members:
                 member = self.members[role]
                 member_params = member.parameters["args"]
-                operation = Task(member_params[0], args, kwargs, priority=priority, interactive=member_params[1])
+                operation = Task(member_params[0], Input.args, Input.kwargs, priority=priority, interactive=member_params[1])
 
                 if behaviour:
                     behaviour(operation)
@@ -735,6 +735,7 @@ class Input:
             
         else:
             raise TypeError("args can only be a tuple or dictionary.")
+
 
 def log(msg):
     if __name__ == "__main__":
