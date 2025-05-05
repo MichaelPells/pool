@@ -714,6 +714,27 @@ class Task:
     def getresult(self):
         self.lock.wait()
         return self.result
+    
+
+class Input:
+    def __init__(self, args: tuple | dict = (), kwargs: dict | None = None):
+        if type(args) == tuple:
+            self.args = args
+
+            if type(kwargs) == dict or kwargs is None:
+                self.kwargs = kwargs or {}
+            else:
+                raise TypeError("kwargs can only be a dictionary or None.")
+            
+        elif type(args) == dict:
+            self.args = ()
+            self.kwargs = args
+
+            if kwargs != None:
+                raise TypeError("kwargs can only be None when args is a dictionary.")
+            
+        else:
+            raise TypeError("args can only be a tuple or dictionary.")
 
 def log(msg):
     if __name__ == "__main__":
