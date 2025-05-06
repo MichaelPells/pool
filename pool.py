@@ -100,57 +100,60 @@ class Pool:
         return self.size
 
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
-        if not workers:
-            workers = self.nominal_workers
-
         if not self.working:
+            if not workers:
+                workers = self.nominal_workers
+
             self.working = True
-            resumed = True
-        else:
-            resumed = False
 
-        self.hire(workers)
+            self.hire(workers)
 
-        if resumed:
             threading.Thread(target=self.manager).start()
 
-    def stop(self):
-        self.working = False
-
-        try:
-            self.queuer.release()
-        except RuntimeError:
-            pass
-
-        if self.priorities:
-            self.stopper1.wait()
-
-        for role in dict(self.members):
-            self.terminate(role)
-
-        while self.workers:
-            log(f'Stop is waiting for {self.workers}')
-            # In the next iteration, Wait for `idle` to be updated.
-            self.stopper2.acquire()
-            log(f'Stopper acquired for {self.idle}')
-
-            while self.idle: # Should any worker have returned to `idle` before the last interation was over
-                for id in self.idle:
-                    worker = self.workers[id]
-
-                    if not worker.task: # Be sure `stop()` was not called between a task assignment and worker unlock.
-                        # Unlock worker
-                        worker.lock.set()
-                        worker.lock.clear()
-
-                        self.idle.remove(id)
-                        del self.workers[id]
-                        log(f'{id} killed')
         else:
+            raise RuntimeError("Pool started already.")
+
+    def stop(self):
+        if self.working:
+            self.working = False
+
             try:
-                self.stopper2.release()
+                self.queuer.release()
             except RuntimeError:
                 pass
+
+            if self.priorities:
+                self.stopper1.wait()
+
+            for role in dict(self.members):
+                self.terminate(role)
+
+            while self.workers:
+                log(f'Stop is waiting for {self.workers}')
+                # In the next iteration, Wait for `idle` to be updated.
+                self.stopper2.acquire()
+                log(f'Stopper acquired for {self.idle}')
+
+                while self.idle: # Should any worker have returned to `idle` before the last interation was over
+                    for id in self.idle:
+                        worker = self.workers[id]
+
+                        if not worker.task: # Be sure `stop()` was not called between a task assignment and worker unlock.
+                            # Unlock worker
+                            worker.lock.set()
+                            worker.lock.clear()
+
+                            self.idle.remove(id)
+                            del self.workers[id]
+                            log(f'{id} killed')
+            else:
+                try:
+                    self.stopper2.release()
+                except RuntimeError:
+                    pass
+
+        else:
+            raise RuntimeError("Pool stopped already.")
 
     def member(self, member, routine, interactive):
         while not member.completed or member.priorities:
