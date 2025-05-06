@@ -22,8 +22,8 @@ class Access(threading.Event):
             self.wait()
 
 TIMEOUT = 60
-NOMINAL_WORKERS = 5
-MIN_WORKERS = 2
+NOMINAL_WORKERS = 7
+MIN_WORKERS = 4
 MAX_WORKERS = 1000
 PRIORITY_LEVELS = 2
 
@@ -108,7 +108,25 @@ class Pool:
 
             self.hire(workers)
 
-            threading.Thread(target=self.manager).start()
+            manager = Task(self.manager, id="manager")
+
+            # Or should we rather use `self.appoint` here?
+            worker = self.workers[1]
+            worker.task = manager # Assign manager to this worker
+
+            # Unlock worker
+            worker.lock.set()
+            worker.lock.clear()
+
+            hirer = Task(self.hirer, id="hirer")
+
+            # Or should we rather use `self.appoint` here?
+            worker = self.workers[2]
+            worker.task = hirer # Assign hirer to this worker
+
+            # Unlock worker
+            worker.lock.set()
+            worker.lock.clear()
 
         else:
             raise RuntimeError("Pool started already.")
@@ -521,6 +539,9 @@ class Pool:
         else:
             self.stopper1.set()
             self.stopper1.clear()
+
+    def hirer(self):
+        ...
 
 
 class Worker(threading.Thread):

@@ -20,28 +20,28 @@
 
 from pool import *
 
-pool = Pool()
-pool.start()
-
-def printer(x):
-    print(x)
-
-pool.team(3, printer, "printer")
-pool.assign("printer", Input(("hello",)))
-pool.stop()
-
-# from pool import Pool, Task
-
-# pool = Pool(priority_levels=7)
+# pool = Pool()
 # pool.start()
 
-# def printer(p, n):
-#     print(f"{p} - {n}")
+# def printer(x):
+#     print(x)
 
-# for n in range(100):
-#     priority = n % 7
-#     pool.execute(printer, priority=priority, args=(priority, n))
+# pool.team(3, printer, "printer")
+# pool.assign("printer", Input(("hello",)))
 # pool.stop()
+
+from pool import Pool, Task
+
+pool = Pool(priority_levels=7)
+pool.start()
+
+def printer(p, n):
+    print(f"{p} - {n}")
+
+for n in range(100):
+    priority = n % 7
+    pool.execute(printer, priority=priority, args=(priority, n))
+pool.stop()
 
 # from pool import Pool, Task
 # import threading
