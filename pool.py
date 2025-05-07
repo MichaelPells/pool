@@ -24,7 +24,7 @@ class Access(threading.Event):
 TIMEOUT = 60
 NOMINAL_WORKERS = 7
 MIN_WORKERS = 4
-MAX_WORKERS = 1000
+MAX_WORKERS = 1000 # Higher values take longer... Due to thread creation time. Any fix?
 PRIORITY_LEVELS = 2
 
 def ERROR_HANDLER(error, target, *args, **kwargs):
@@ -56,6 +56,7 @@ class Pool:
         self.waiter = threading.Event()
         self.stopper1 = threading.Event()
         self.stopper2 = threading.Lock()
+        self.hiring = threading.Lock()
 
         self.working = False
         self.workers = {}
@@ -74,7 +75,7 @@ class Pool:
     def idler(self, id):
         self.idle.append(id)
 
-        # Unlock execute
+        # Unlock manager
         self.waiter.set()
         self.waiter.clear()
 
@@ -88,6 +89,12 @@ class Pool:
     def unidler(self, id):
         self.idle.remove(id)
 
+        # Unlock hirer
+        try:
+            self.hiring.release()
+        except RuntimeError:
+            pass
+
     def hire(self, workers=1):
         for _ in range(workers):
             self.size += 1
@@ -95,7 +102,7 @@ class Pool:
             worker.start()
 
             self.workers[self.size] = worker
-            self.idle.append(self.size)
+            self.idler(self.size)
 
         return self.size
 
@@ -495,37 +502,17 @@ class Pool:
                             worker.lock.set()
                             worker.lock.clear()
 
-                            if self.working or self.priorities:
-                                # Taking a peep into `idle` for the next worker.
-                                # Ideally the worker at `idle[1]`. But this is not always the case, as exemplified above.
-                                # Create a new worker if none.
-                                # This ensures there is always at least 1 available worker for the next incoming task.
-                                try:
-                                    self.idle[n + 1]
-                                except IndexError:
-                                    if len(self.workers) < MAX_WORKERS:
-                                        self.hire()
-
                             break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
-                    if len(self.workers) < MAX_WORKERS:
-                        new_worker_id = self.hire() # Create a new worker
-                        worker = self.workers[new_worker_id]
-                        worker.task = task # Assign the task to this worker
+                    self.waiter.wait() # Wait for `idle` to be updated.
 
-                        # Unlock worker
-                        worker.lock.set()
-                        worker.lock.clear()
-                    else:
-                        self.waiter.wait() # Wait for `idle` to be updated.
+                    worker = self.workers[self.idle[0]]
+                    worker.task = task # Assign the task to this worker
 
-                        worker = self.workers[self.idle[0]]
-                        worker.task = task # Assign the task to this worker
-
-                        # Unlock worker
-                        worker.lock.set()
-                        worker.lock.clear()
+                    # Unlock worker
+                    worker.lock.set()
+                    worker.lock.clear()
 
                 if not self.queue[focus]:
                     self.access.close()
@@ -537,11 +524,27 @@ class Pool:
 
                     self.access.open()
         else:
+            try:
+                self.queuer.release()
+            except RuntimeError:
+                pass
+
             self.stopper1.set()
             self.stopper1.clear()
 
     def hirer(self):
-        ...
+        while self.working or self.priorities:
+            self.hiring.acquire()
+
+            if not self.idle:
+                if self.size < MAX_WORKERS:
+                    self.hire() # Create a new worker
+
+        else:
+            try:
+                self.hiring.release()
+            except RuntimeError:
+                pass
 
 
 class Worker(threading.Thread):

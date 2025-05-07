@@ -38,10 +38,11 @@ pool.start()
 def printer(p, n):
     print(f"{p} - {n}")
 
-for n in range(100):
+for n in range(1000):
     priority = n % 7
     pool.execute(printer, priority=priority, args=(priority, n))
 pool.stop()
+print(pool.size)
 
 # from pool import Pool, Task
 # import threading
