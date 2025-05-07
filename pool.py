@@ -115,25 +115,21 @@ class Pool:
 
             self.hire(workers)
 
-            manager = Task(self.manager, id="manager")
+            # Or should we rather use `self.appoint` here?
+            manager = self.workers[1] # Assign manager to this worker
+            manager.task = Task(self.manager, id="manager")
+
+            # Unlock manager
+            manager.lock.set()
+            manager.lock.clear()
 
             # Or should we rather use `self.appoint` here?
-            worker = self.workers[1]
-            worker.task = manager # Assign manager to this worker
+            hirer = self.workers[2] # Assign hirer to this worker
+            hirer.task = Task(self.hirer, id="hirer")
 
-            # Unlock worker
-            worker.lock.set()
-            worker.lock.clear()
-
-            hirer = Task(self.hirer, id="hirer")
-
-            # Or should we rather use `self.appoint` here?
-            worker = self.workers[2]
-            worker.task = hirer # Assign hirer to this worker
-
-            # Unlock worker
-            worker.lock.set()
-            worker.lock.clear()
+            # Unlock hirer
+            hirer.lock.set()
+            hirer.lock.clear()
 
         else:
             raise RuntimeError("Pool started already.")
