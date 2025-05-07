@@ -117,19 +117,11 @@ class Pool:
 
             # Or should we rather use `self.appoint` here?
             manager = self.workers[1] # Assign manager to this worker
-            manager.task = Task(self.manager, id="manager")
-
-            # Unlock manager
-            manager.lock.set()
-            manager.lock.clear()
+            manager.assign(Task(self.manager, id="manager"))
 
             # Or should we rather use `self.appoint` here?
             hirer = self.workers[2] # Assign hirer to this worker
-            hirer.task = Task(self.hirer, id="hirer")
-
-            # Unlock hirer
-            hirer.lock.set()
-            hirer.lock.clear()
+            hirer.assign(Task(self.hirer, id="hirer"))
 
         else:
             raise RuntimeError("Pool started already.")
@@ -492,11 +484,7 @@ class Pool:
                         # Hence, the loop and checks.
                         worker = self.workers[self.idle[n]]
                         if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
-                            worker.task = task # Assign the task to this worker
-
-                            # Unlock worker
-                            worker.lock.set()
-                            worker.lock.clear()
+                            worker.assign(task) # Assign the task to this worker
 
                             break
                         n += 1
@@ -504,11 +492,7 @@ class Pool:
                     self.waiter.wait() # Wait for `idle` to be updated.
 
                     worker = self.workers[self.idle[0]]
-                    worker.task = task # Assign the task to this worker
-
-                    # Unlock worker
-                    worker.lock.set()
-                    worker.lock.clear()
+                    worker.assign(task) # Assign the task to this worker
 
                 if not self.queue[focus]:
                     self.access.close()
@@ -599,6 +583,14 @@ class Worker(threading.Thread):
 
                 self.task = None # Clear task.
                 self.pool.idler(self.id) # Register idleness.
+
+    def assign(self, task):
+        self.task = task
+
+        # Unlock worker
+        self.lock.set()
+        self.lock.clear()
+
 
 class TaskIO(io.TextIOWrapper):
     def __init__(self,
