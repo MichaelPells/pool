@@ -165,6 +165,9 @@ class Pool:
                 except RuntimeError:
                     pass
 
+                print(self.size)
+                self.size = 0
+
         else:
             raise RuntimeError("Pool stopped already.")
 
