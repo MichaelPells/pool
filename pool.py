@@ -96,21 +96,29 @@ class Pool:
             pass
 
     def hire(self, workers=1):
-        for _ in range(workers):
-            self.size += 1
-            worker = Worker(self, self.size)
-            worker.start()
+        if self.working or self.priorities:
+            for _ in range(workers):
+                self.size += 1
+                worker = Worker(self, self.size)
+                worker.start()
 
-            self.workers[self.size] = worker
-            self.idler(self.size)
+                self.workers[self.size] = worker
+                self.idler(self.size)
 
-        return self.size
+            return self.size
+
+        else:
+            raise RuntimeError("Hiring within a stopped pool.")
 
     def fire(self, id):
-        self.idle.remove(id)
-        del self.workers[id]
-        self.size -= 1
-        log(f'{id} killed')
+        if id in self.idle:
+            self.idle.remove(id)
+            del self.workers[id]
+            self.size -= 1
+            log(f'{id} killed')
+
+        else:
+            raise RuntimeError(f"Attempted to fire an unknown worker ({id}).")
 
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
         if not self.working:
