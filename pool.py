@@ -106,6 +106,12 @@ class Pool:
 
         return self.size
 
+    def fire(self, id):
+        self.idle.remove(id)
+        del self.workers[id]
+        self.size -= 1
+        log(f'{id} killed')
+
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
         if not self.working:
             if not workers:
@@ -138,16 +144,22 @@ class Pool:
             if self.priorities:
                 self.stopper1.wait()
 
+            try:
+                self.hiring.release()
+            except RuntimeError:
+                pass
+
             for role in dict(self.members):
                 self.terminate(role)
 
-            while self.workers:
+            size = self.size
+            while self.size:
                 log(f'Stop is waiting for {self.workers}')
                 # In the next iteration, Wait for `idle` to be updated.
                 self.stopper2.acquire()
                 log(f'Stopper acquired for {self.idle}')
 
-                while self.idle: # Should any worker have returned to `idle` before the last interation was over
+                while self.idle: # Should any worker have returned to `idle` before the last iteration was over
                     for id in self.idle:
                         worker = self.workers[id]
 
@@ -156,18 +168,13 @@ class Pool:
                             worker.lock.set()
                             worker.lock.clear()
 
-                            self.idle.remove(id)
-                            del self.workers[id]
-                            log(f'{id} killed')
+                            self.fire(id)
             else:
+                print(size)
                 try:
                     self.stopper2.release()
                 except RuntimeError:
                     pass
-
-                print(self.size)
-                self.size = 0
-
         else:
             raise RuntimeError("Pool stopped already.")
 
@@ -519,9 +526,10 @@ class Pool:
         while self.working or self.priorities:
             self.hiring.acquire()
 
-            if not self.idle:
-                if self.size < MAX_WORKERS:
-                    self.hire() # Create a new worker
+            if self.working or self.priorities:
+                if not self.idle:
+                    if self.size < MAX_WORKERS:
+                        self.hire() # Create a new worker
 
         else:
             try:
@@ -557,11 +565,9 @@ class Worker(threading.Thread):
                     # Killing a thread and recreating a new one is expensive.
                     # Simply renew an expired, unused thread or a scarce thread.
                     with self.pool.prober:
-                        if not self.new and len(self.pool.workers) > MIN_WORKERS: # Kill the worker
+                        if not self.new and self.pool.size > MIN_WORKERS: # Kill the worker
                             log(f'{self.id} probing')
-                            self.pool.idle.remove(self.id)
-                            del self.pool.workers[self.id]
-                            log(f'{self.id} killed')
+                            self.pool.fire(self.id)
                             log(self.pool.workers)
                             log(self.pool.idle)
                             break
