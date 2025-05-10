@@ -31,14 +31,16 @@ from pool import *
 # pool.stop()
 
 from pool import Pool, Task
+import time
 
 pool = Pool(priority_levels=7)
-pool.start()
+pool.start(4)
 
 def printer(p, n):
-    print(f"{p} - {n}")
+    ...
+    # print(f"{p} - {n}")
 
-for n in range(1000):
+for n in range(10000):
     priority = n % 7
     pool.execute(printer, priority=priority, args=(priority, n))
 pool.stop()

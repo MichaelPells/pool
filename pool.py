@@ -63,6 +63,7 @@ class Pool:
         self.idle = []
         self.size = 0
         self.members = {}
+        self.backlog = 0
 
         self.queue = {p: [] for p in range(self.priority_levels)}
         self.priorities = {}
@@ -77,7 +78,6 @@ class Pool:
 
         # Unlock manager
         self.waiter.set()
-        self.waiter.clear()
 
         # Unlock stop
         try:
@@ -463,6 +463,8 @@ class Pool:
                 self.priorities[task.priority] = None
                 self.prioritiesupdated = True
 
+            self.backlog += task.weight
+
             if not unlisted:
                 self.pending[task.priority] -= 1
 
@@ -476,6 +478,7 @@ class Pool:
             raise RuntimeError("Task assigned to a stopped pool.")
 
     def manager(self):
+        emptied = 0
         while self.working or self.priorities:
             self.queuer.acquire()
 
@@ -507,10 +510,16 @@ class Pool:
                             break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
+                    print(self.backlog)
+                    emptied += 1
                     self.waiter.wait() # Wait for `idle` to be updated.
+                    
+                    self.waiter.clear()
 
                     worker = self.workers[self.idle[0]]
                     worker.assign(task) # Assign the task to this worker
+
+                self.backlog -= task.weight
 
                 if not self.queue[focus]:
                     self.access.close()
@@ -522,6 +531,7 @@ class Pool:
 
                     self.access.open()
         else:
+            print(emptied)
             try:
                 self.queuer.release()
             except RuntimeError:
@@ -537,7 +547,9 @@ class Pool:
             if self.working or self.priorities:
                 if not self.idle:
                     if self.size < MAX_WORKERS:
-                        self.hire() # Create a new worker
+                        ...
+                        # print(f"-------------------- Backlog: {self.backlog}")
+                        # self.hire() # Create a new worker
 
         else:
             try:
