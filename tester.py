@@ -34,7 +34,7 @@ from pool import Pool, Task
 import time
 
 pool = Pool(priority_levels=7)
-pool.start(4)
+pool.start(2)
 
 def printer(p, n):
     ...

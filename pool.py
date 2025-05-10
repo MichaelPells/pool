@@ -22,8 +22,8 @@ class Access(threading.Event):
             self.wait()
 
 TIMEOUT = 60
-NOMINAL_WORKERS = 7
-MIN_WORKERS = 4
+NOMINAL_WORKERS = 5
+MIN_WORKERS = 2
 MAX_WORKERS = 1000 # Higher values take longer... Due to thread creation time. Any fix?
 PRIORITY_LEVELS = 2
 
@@ -127,15 +127,15 @@ class Pool:
 
             self.working = True
 
-            self.hire(workers)
-
-            # Or should we rather use `self.appoint` here?
-            manager = self.workers[1] # Assign manager to this worker
+            manager = Worker(self)
+            manager.start()
             manager.assign(Task(self.manager, id="manager"))
 
-            # Or should we rather use `self.appoint` here?
-            hirer = self.workers[2] # Assign hirer to this worker
+            hirer = Worker(self)
+            hirer.start()
             hirer.assign(Task(self.hirer, id="hirer"))
+
+            self.hire(workers)
 
         else:
             raise RuntimeError("Pool started already.")
@@ -600,7 +600,7 @@ class Worker(threading.Thread):
 
             # Execute task
             if self.task:
-                self.pool.unidler(self.id) # Unregister idleness
+                if self.id: self.pool.unidler(self.id) # Unregister idleness
                 self.new = False
 
                 try:
@@ -611,7 +611,7 @@ class Worker(threading.Thread):
                     self.task.parameters["error_handler"](error, self.task, *self.task.parameters["args"], **self.task.parameters["kwargs"])
 
                 self.task = None # Clear task.
-                self.pool.idler(self.id) # Register idleness.
+                if self.id: self.pool.idler(self.id) # Register idleness.
 
     def assign(self, task):
         self.task = task
