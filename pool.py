@@ -112,6 +112,11 @@ class Pool:
 
     def fire(self, id):
         if id in self.idle:
+            try:
+                self.workers[id].task.wait()
+            except Exception:
+                pass
+
             self.idle.remove(id)
             del self.workers[id]
             self.size -= 1
@@ -478,7 +483,6 @@ class Pool:
             raise RuntimeError("Task assigned to a stopped pool.")
 
     def manager(self):
-        emptied = 0
         while self.working or self.priorities:
             self.queuer.acquire()
 
@@ -510,8 +514,6 @@ class Pool:
                             break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
-                    print(self.backlog)
-                    emptied += 1
                     self.waiter.wait() # Wait for `idle` to be updated.
                     
                     self.waiter.clear()
@@ -531,7 +533,6 @@ class Pool:
 
                     self.access.open()
         else:
-            print(emptied)
             try:
                 self.queuer.release()
             except RuntimeError:
@@ -546,10 +547,13 @@ class Pool:
 
             if self.working or self.priorities:
                 if not self.idle:
-                    if self.size < MAX_WORKERS:
-                        ...
-                        # print(f"-------------------- Backlog: {self.backlog}")
-                        # self.hire() # Create a new worker
+                    if self.backlog > 10 and self.size < MAX_WORKERS:
+                        print("hired")
+                        self.hire()
+
+                    elif self.backlog < 10 and self.size > MIN_WORKERS:
+                        print("fired")
+                        self.fire()
 
         else:
             try:
