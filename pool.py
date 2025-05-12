@@ -40,6 +40,7 @@ class Pool:
                  nominal_workers=NOMINAL_WORKERS,
                  min_workers=MIN_WORKERS,
                  max_workers=MAX_WORKERS,
+                 max_backlog=0,
                  error_handler=ERROR_HANDLER,
                  priority_levels=PRIORITY_LEVELS
                 ):
@@ -48,6 +49,7 @@ class Pool:
         self.nominal_workers = nominal_workers
         self.min_workers = min_workers
         self.max_workers = max_workers
+        self.max_backlog = max_backlog
         self.error_handler = error_handler
         self.priority_levels = priority_levels
 
@@ -96,22 +98,18 @@ class Pool:
             pass
 
     def hire(self, workers=1):
-        if self.working or self.priorities:
-            for _ in range(workers):
-                self.size += 1
-                worker = Worker(self, self.size)
-                worker.start()
+        for _ in range(workers):
+            self.size += 1
+            worker = Worker(self, self.size)
+            worker.start()
 
-                self.workers[self.size] = worker
-                self.idler(self.size)
+            self.workers[self.size] = worker
+            self.idler(self.size)
 
-            return self.size
+        return self.size
 
-        else:
-            raise RuntimeError("Hiring within a stopped pool.")
-
-    def fire(self, id):
-        if id in self.idle:
+    def fire(self, id): # There is a serious problem here!
+        if id in self.workers:
             try:
                 self.workers[id].task.wait()
             except Exception:
@@ -542,18 +540,25 @@ class Pool:
             self.stopper1.clear()
 
     def hirer(self):
+        full = False
+
         while self.working or self.priorities:
             self.hiring.acquire()
 
             if self.working or self.priorities:
                 if not self.idle:
-                    if self.backlog > 10 and self.size < MAX_WORKERS:
-                        print("hired")
-                        self.hire()
+                    if not full:
+                        if self.backlog >= self.max_backlog:
+                            full = True
 
-                    elif self.backlog < 10 and self.size > MIN_WORKERS:
-                        print("fired")
-                        self.fire()
+                    if full:
+                        if self.backlog > self.max_backlog and self.size < MAX_WORKERS:
+                            print("hired")
+                            self.hire()
+
+                        elif self.backlog < self.max_backlog and self.size > MIN_WORKERS:
+                            print("fired")
+                            self.fire(self.size)
 
         else:
             try:
