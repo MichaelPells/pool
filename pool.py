@@ -108,17 +108,23 @@ class Pool:
 
         return self.size
 
-    def fire(self, id): # There is a serious problem here!
-        if id in self.workers:
-            try:
-                self.workers[id].task.wait()
-            except Exception:
-                pass
+    def fire(self, id=None): # There is a serious problem here!
+        if id == None:
+            id = self.size
 
-            self.idle.remove(id)
-            del self.workers[id]
-            self.size -= 1
-            log(f'{id} killed')
+        if id in self.workers:
+            worker = self.workers[id]
+
+            with worker.access:
+                while id not in self.idle: pass
+                worker.active = False
+
+                worker.lock.set() # Unlock worker
+
+                self.idle.remove(id)
+                del self.workers[id]
+                self.size -= 1
+                log(f'{id} killed')
 
         else:
             raise RuntimeError(f"Attempted to fire an unknown worker ({id}).")
@@ -172,14 +178,7 @@ class Pool:
 
                 while self.idle: # Should any worker have returned to `idle` before the last iteration was over
                     for id in self.idle:
-                        worker = self.workers[id]
-
-                        if not worker.task: # Be sure `stop()` was not called between a task assignment and worker unlock.
-                            # Unlock worker
-                            worker.lock.set()
-                            worker.lock.clear()
-
-                            self.fire(id)
+                        self.fire(id)
             else:
                 print(size)
                 try:
@@ -506,10 +505,11 @@ class Pool:
                         # But who can tell? Worker may not be ready for next task instantly, as exemplified below.
                         # Hence, the loop and checks.
                         worker = self.workers[self.idle[n]]
-                        if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
-                            worker.assign(task) # Assign the task to this worker
+                        with worker.access:
+                            if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
+                                worker.assign(task) # Assign the task to this worker
 
-                            break
+                                break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
                     self.waiter.wait() # Wait for `idle` to be updated.
@@ -517,7 +517,8 @@ class Pool:
                     self.waiter.clear()
 
                     worker = self.workers[self.idle[0]]
-                    worker.assign(task) # Assign the task to this worker
+                    with worker.access:
+                        worker.assign(task) # Assign the task to this worker
 
                 self.backlog -= task.weight
 
@@ -558,7 +559,7 @@ class Pool:
 
                         elif self.backlog < self.max_backlog and self.size > MIN_WORKERS:
                             print("fired")
-                            self.fire(self.size)
+                            self.fire()
 
         else:
             try:
@@ -574,15 +575,18 @@ class Worker(threading.Thread):
         self.pool = pool
         self.id = id
 
+        self.active = True
         self.new = True
         self.task: Task = None
         self.lock = threading.Event()
+        self.access = threading.Lock()
         self.timed_out = False
 
     def run(self):
-        while self.pool.working or self.pool.priorities or self.task: # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
+        while self.active and (self.pool.working or self.pool.priorities or self.task): # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
             # Wait for task to be assigned, and worker unlocked.
             locked = self.lock.wait(timeout=TIMEOUT)
+            self.lock.clear()
             log(f'{self.id} lock: {locked}')
 
             # Handle timeout.
@@ -597,6 +601,7 @@ class Worker(threading.Thread):
                         if not self.new and self.pool.size > MIN_WORKERS: # Kill the worker
                             log(f'{self.id} probing')
                             self.pool.fire(self.id)
+                            print(f"Timed out -------------- {self.id}")
                             log(self.pool.workers)
                             log(self.pool.idle)
                             break
