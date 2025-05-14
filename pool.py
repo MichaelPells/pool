@@ -553,7 +553,7 @@ class Pool:
         while self.working or self.priorities:
             self.hiring.acquire()
 
-            if self.working or self.priorities:
+            if self.working:
                 if not self.idle:
                     if not full:
                         if self.backlog >= self.max_backlog:
