@@ -57,7 +57,8 @@ class Pool:
         self.prober = threading.Lock()
         self.waiter = threading.Event()
         self.stopper1 = threading.Event()
-        self.stopper2 = threading.Lock()
+        self.stopper2 = threading.Event()
+        self.stopper3 = threading.Lock()
         self.hiring = threading.Lock()
 
         self.working = False
@@ -83,7 +84,7 @@ class Pool:
 
         # Unlock stop
         try:
-            self.stopper2.release()
+            self.stopper3.release()
         except RuntimeError:
             pass
         log(f'Stopper released by {id}')
@@ -103,8 +104,6 @@ class Pool:
             worker = Worker(self, id)
             worker.start()
 
-            if id in self.workers:
-                print(f"Error --------------------------------------- {id}")
             self.workers[id] = worker
             self.idler(id)
 
@@ -133,8 +132,6 @@ class Pool:
                 log(f'{id} killed')
 
         else:
-            print(self.workers.keys())
-            print(self.idle)
             raise RuntimeError(f"Attempted to fire an unknown worker ({id}).")
 
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
@@ -166,13 +163,16 @@ class Pool:
             except RuntimeError:
                 pass
 
-            if self.priorities:
-                self.stopper1.wait()
+            self.stopper1.wait()
+            self.stopper1.clear()
 
             try:
                 self.hiring.release()
             except RuntimeError:
                 pass
+
+            self.stopper2.wait()
+            self.stopper2.clear()
 
             for role in dict(self.members):
                 self.terminate(role)
@@ -181,7 +181,7 @@ class Pool:
             while self.size:
                 log(f'Stop is waiting for {self.workers}')
                 # In the next iteration, Wait for `idle` to be updated.
-                self.stopper2.acquire()
+                self.stopper3.acquire()
                 log(f'Stopper acquired for {self.idle}')
 
                 while self.idle: # Should any worker have returned to `idle` before the last iteration was over
@@ -190,7 +190,7 @@ class Pool:
             else:
                 print(size)
                 try:
-                    self.stopper2.release()
+                    self.stopper3.release()
                 except RuntimeError:
                     pass
         else:
@@ -546,7 +546,6 @@ class Pool:
                 pass
 
             self.stopper1.set()
-            self.stopper1.clear()
 
     def hirer(self):
         full = False
@@ -574,6 +573,8 @@ class Pool:
                 self.hiring.release()
             except RuntimeError:
                 pass
+
+            self.stopper2.set()
 
 
 class Worker(threading.Thread):
@@ -609,7 +610,6 @@ class Worker(threading.Thread):
                         if not self.new and self.pool.size > MIN_WORKERS: # Kill the worker
                             log(f'{self.id} probing')
                             self.pool.fire(self.id)
-                            print(f"Timed out -------------- {self.id}")
                             log(self.pool.workers)
                             log(self.pool.idle)
                             break
