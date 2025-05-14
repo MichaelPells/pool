@@ -103,6 +103,8 @@ class Pool:
             worker = Worker(self, self.size)
             worker.start()
 
+            if self.size in self.workers:
+                print(f"Error --------------------------------------- {self.size}")
             self.workers[self.size] = worker
             self.idler(self.size)
 
@@ -114,9 +116,10 @@ class Pool:
 
         if id in self.workers:
             worker = self.workers[id]
+            while worker.new: pass
 
             with worker.access:
-                while id not in self.idle: pass
+                while worker.task or id not in self.idle: pass
                 worker.active = False
 
                 worker.lock.set() # Unlock worker
@@ -127,6 +130,8 @@ class Pool:
                 log(f'{id} killed')
 
         else:
+            print(self.workers.keys())
+            print(self.idle)
             raise RuntimeError(f"Attempted to fire an unknown worker ({id}).")
 
     def start(self, workers=0): # Pool is currently not being reset after stop(). Re-start-ing might crash (e.g because of initially acquired locks).
@@ -506,7 +511,7 @@ class Pool:
                         # Hence, the loop and checks.
                         worker = self.workers[self.idle[n]]
                         with worker.access:
-                            if not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
+                            if worker.active and not worker.timed_out and not worker.task: # Avoiding race conditions, majorly. Workers don't get popped from `idle` instantly.
                                 worker.assign(task) # Assign the task to this worker
 
                                 break
@@ -559,7 +564,7 @@ class Pool:
 
                         elif self.backlog < self.max_backlog and self.size > MIN_WORKERS:
                             print("fired")
-                            self.fire()
+                            # self.fire()
 
         else:
             try:
@@ -626,6 +631,8 @@ class Worker(threading.Thread):
 
                 self.task = None # Clear task.
                 if self.id: self.pool.idler(self.id) # Register idleness.
+        else:
+            self.new = False
 
     def assign(self, task):
         self.task = task
