@@ -99,14 +99,16 @@ class Pool:
 
     def hire(self, workers=1):
         for _ in range(workers):
-            self.size += 1
-            worker = Worker(self, self.size)
+            id = self.size + 1
+            worker = Worker(self, id)
             worker.start()
 
-            if self.size in self.workers:
-                print(f"Error --------------------------------------- {self.size}")
-            self.workers[self.size] = worker
-            self.idler(self.size)
+            if id in self.workers:
+                print(f"Error --------------------------------------- {id}")
+            self.workers[id] = worker
+            self.idler(id)
+
+            self.size = id
 
         return self.size
 
@@ -124,9 +126,10 @@ class Pool:
 
                 worker.lock.set() # Unlock worker
 
+                self.size -= 1
+
                 self.idle.remove(id)
                 del self.workers[id]
-                self.size -= 1
                 log(f'{id} killed')
 
         else:
