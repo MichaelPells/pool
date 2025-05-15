@@ -79,26 +79,28 @@ class Pool:
         self.focus: None | int = None
 
     def idler(self, id):
-        self.idle.append(id)
+        if self.workers[id].active:
+            self.idle.append(id)
 
-        # Unlock manager
-        self.waiter.set()
+            # Unlock manager
+            self.waiter.set()
 
-        # Unlock stop
-        try:
-            self.stopper3.release()
-        except RuntimeError:
-            pass
-        log(f'Stopper released by {id}')
+            # Unlock stop
+            try:
+                self.stopper3.release()
+            except RuntimeError:
+                pass
+            log(f'Stopper released by {id}')
 
     def unidler(self, id):
-        self.idle.remove(id)
+        if id in self.idle:
+            self.idle.remove(id)
 
-        # Unlock hirer
-        try:
-            self.hiring.release()
-        except RuntimeError:
-            pass
+            # Unlock hirer
+            try:
+                self.hiring.release()
+            except RuntimeError:
+                pass
 
     def hire(self, workers=1):
         for _ in range(workers):
@@ -122,7 +124,6 @@ class Pool:
                 return
 
             with worker.access:
-                print(f"{id} ------- {worker.new}")
                 worker.active = False
                 worker.lock.set() # Unlock worker
 
@@ -515,13 +516,16 @@ class Pool:
                                 break
                         n += 1
                 except IndexError: # Means we reached the end of idle, yet no available worker
-                    self.waiter.wait() # Wait for `idle` to be updated.
-                    
-                    self.waiter.clear()
+                    while True:
+                        self.waiter.wait() # Wait for `idle` to be updated.
+                        self.waiter.clear()
 
-                    worker = self.workers[self.idle[0]]
-                    with worker.access:
-                        worker.assign(task) # Assign the task to this worker
+                        worker = self.workers[self.idle[0]]
+                        with worker.access:
+                            if worker.active:
+                                worker.assign(task) # Assign the task to this worker
+
+                                break
 
                 self.backlog -= task.weight
 
@@ -565,7 +569,7 @@ class Pool:
                             with self.prober:
                                 if self.size > MIN_WORKERS:
                                     print("fired")
-                                    # while len(self.idle) < 2: pass
+                                    while len(self.idle) < min(3, self.size): pass
                                     self.fire()
 
         else:
@@ -611,6 +615,7 @@ class Worker(threading.Thread):
                             log(f'{self.id} probing')
                             log(self.pool.workers)
                             log(self.pool.idle)
+                            print(f"{id} timing out")
                             break
                         else: # Restore the worker
                             self.timed_out = False
@@ -647,7 +652,7 @@ class Worker(threading.Thread):
 
         self.pool.size -= 1
 
-        self.pool.idle.remove(self.id)
+        self.pool.unidler(self.id)
         del self.pool.workers[self.id]
         log(f'{self.id} killed')
 
