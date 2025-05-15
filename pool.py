@@ -41,6 +41,7 @@ class Pool:
                  min_workers=MIN_WORKERS,
                  max_workers=MAX_WORKERS,
                  max_backlog=0,
+                 min_backlog=0,
                  error_handler=ERROR_HANDLER,
                  priority_levels=PRIORITY_LEVELS
                 ):
@@ -50,6 +51,7 @@ class Pool:
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.max_backlog = max_backlog
+        self.min_backlog = min_backlog or max_backlog
         self.error_handler = error_handler
         self.priority_levels = priority_levels
 
@@ -117,9 +119,10 @@ class Pool:
 
         if id in self.workers:
             worker = self.workers[id]
-            while worker.new: pass
+            while worker.new: pass # Do something better here later! May be using threading.Event after new = False in worker
 
             with worker.access:
+                print(f"{id} ------- {worker.new}")
                 while worker.task or id not in self.idle: pass
                 worker.active = False
 
@@ -564,9 +567,10 @@ class Pool:
                             print("hired")
                             self.hire()
 
-                        elif self.backlog < self.max_backlog and self.size > MIN_WORKERS:
+                        elif self.backlog < self.min_backlog and self.size > MIN_WORKERS:
                             print("fired")
-                            # self.fire()
+                            while len(self.idle) < 2: pass
+                            self.fire()
 
         else:
             try:
@@ -609,7 +613,7 @@ class Worker(threading.Thread):
                     with self.pool.prober:
                         if not self.new and self.pool.size > MIN_WORKERS: # Kill the worker
                             log(f'{self.id} probing')
-                            self.pool.fire(self.id)
+                            if self.id: self.pool.fire(self.id)
                             log(self.pool.workers)
                             log(self.pool.idle)
                             break

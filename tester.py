@@ -33,7 +33,7 @@ from pool import *
 from pool import Pool, Task
 import time
 
-pool = Pool(priority_levels=7, max_backlog=10)
+pool = Pool(priority_levels=7, max_backlog=9000, min_backlog=8000)
 pool.start(10)
 
 def printer(p, n):
@@ -42,6 +42,7 @@ def printer(p, n):
 for n in range(10000):
     priority = n % 7
     pool.execute(printer, priority=priority, args=(priority, n))
+time.sleep(10)
 pool.stop()
 
 # from pool import Pool, Task
