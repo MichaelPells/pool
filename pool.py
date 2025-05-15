@@ -60,7 +60,6 @@ class Pool:
         self.waiter = threading.Event()
         self.stopper1 = threading.Event()
         self.stopper2 = threading.Event()
-        self.stopper3 = threading.Lock()
         self.hiring = threading.Lock()
 
         self.working = False
@@ -84,13 +83,6 @@ class Pool:
 
             # Unlock manager
             self.waiter.set()
-
-            # Unlock stop
-            try:
-                self.stopper3.release()
-            except RuntimeError:
-                pass
-            log(f'Stopper released by {id}')
 
     def unidler(self, id):
         if id in self.idle:
@@ -162,6 +154,8 @@ class Pool:
             self.stopper1.wait()
             self.stopper1.clear()
 
+            print(self.size)
+
             try:
                 self.hiring.release()
             except RuntimeError:
@@ -173,22 +167,10 @@ class Pool:
             for role in dict(self.members):
                 self.terminate(role)
 
-            # size = self.size
-            # while self.size:
-            #     log(f'Stop is waiting for {self.workers}')
-            #     # In the next iteration, Wait for `idle` to be updated.
-            #     self.stopper3.acquire()
-            #     log(f'Stopper acquired for {self.idle}')
+            while self.size:
+                pass
+            # But are workers not likely to be stuck at lock.wait until timeout??
 
-            #     while self.idle: # Should any worker have returned to `idle` before the last iteration was over
-            #         for id in self.idle:
-            #             self.fire(id)
-            # else:
-            #     print(size)
-            #     try:
-            #         self.stopper3.release()
-            #     except RuntimeError:
-            #         pass
         else:
             raise RuntimeError("Pool stopped already.")
 
