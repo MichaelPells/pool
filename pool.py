@@ -58,8 +58,7 @@ class Pool:
         self.queuer = threading.Lock()
         self.prober = threading.Lock()
         self.waiter = threading.Event()
-        self.stopper1 = threading.Event()
-        self.stopper2 = threading.Event()
+        self.stopper = threading.Event()
         self.hiring = threading.Lock()
 
         self.working = False
@@ -76,6 +75,9 @@ class Pool:
         self.access = Access(self)
         self.pending = {p: 0 for p in range(self.priority_levels)}
         self.focus: None | int = None
+
+        self.manager = None
+        self.hirer = None
 
     def idler(self, id):
         if self.workers[id].active:
@@ -147,29 +149,29 @@ class Pool:
             self.working = False
 
             try:
-                self.queuer.release()
-            except RuntimeError:
-                pass
-
-            self.stopper1.wait()
-            self.stopper1.clear()
-
-            print(self.size)
-
-            try:
                 self.hiring.release()
             except RuntimeError:
                 pass
 
-            self.stopper2.wait()
-            self.stopper2.clear()
+            try:
+                self.queuer.release()
+            except RuntimeError:
+                pass
+
+            self.stopper.wait()
+            self.stopper.clear()
+
+            print(self.size)
 
             for role in dict(self.members):
                 self.terminate(role)
 
             while self.size:
-                pass
-            # But are workers not likely to be stuck at lock.wait until timeout??
+                for id in self.idle:
+                    try:
+                        self.fire(id)
+                    except (RuntimeError, KeyError):
+                        pass
 
         else:
             raise RuntimeError("Pool stopped already.")
@@ -526,12 +528,12 @@ class Pool:
             except RuntimeError:
                 pass
 
-            self.stopper1.set()
+            self.stopper.set()
 
     def hirer(self):
         full = False
 
-        while self.working or self.priorities:
+        while self.working:
             self.hiring.acquire()
 
             if self.working:
@@ -553,14 +555,11 @@ class Pool:
                                     print("fired")
                                     while len(self.idle) < min(3, self.size): pass
                                     self.fire()
-
         else:
             try:
                 self.hiring.release()
             except RuntimeError:
                 pass
-
-            self.stopper2.set()
 
 
 class Worker(threading.Thread):
@@ -593,11 +592,11 @@ class Worker(threading.Thread):
                     # Killing a thread and recreating a new one is expensive.
                     # Simply renew an expired, unused thread or a scarce thread.
                     with self.pool.prober:
-                        if not self.new and self.pool.size > MIN_WORKERS: # Kill the worker
+                        if not self.new and (self.pool.size > MIN_WORKERS or not self.id): # Kill the worker
                             log(f'{self.id} probing')
                             log(self.pool.workers)
                             log(self.pool.idle)
-                            print(f"{id} timing out")
+                            print(f"{self.id} timing out")
                             break
                         else: # Restore the worker
                             self.timed_out = False
