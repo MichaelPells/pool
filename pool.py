@@ -34,6 +34,243 @@ Exception: {error}
 
 ''')
 
+
+class Worker(threading.Thread):
+    def __init__(self, pool, id=0):
+        threading.Thread.__init__(self)
+
+        self.pool = pool
+        self.id = id
+
+        self.active = True
+        self.new = True
+        self.task: Task = None
+        self.lock = threading.Event()
+        self.access = threading.Lock()
+        self.timed_out = False
+
+    def run(self):
+        while self.active and (self.pool.working or self.pool.priorities or self.task): # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
+            # Wait for task to be assigned, and worker unlocked.
+            locked = self.lock.wait(timeout=TIMEOUT)
+            self.lock.clear()
+            log(f'{self.id} lock: {locked}')
+
+            # Handle timeout.
+            if not locked:
+                # Probe the worker
+                self.timed_out = True # First suspend the worker
+                if not self.task: # Be sure a task has not been assigned between timeout expire and worker suspension.
+
+                    # Killing a thread and recreating a new one is expensive.
+                    # Simply renew an expired, unused thread or a scarce thread.
+                    with self.pool.prober:
+                        if not self.new and (self.pool.size > MIN_WORKERS or not self.id): # Kill the worker
+                            log(f'{self.id} probing')
+                            log(self.pool.workers)
+                            log(self.pool.idle)
+                            print(f"{self.id} timing out")
+                            break
+                        else: # Restore the worker
+                            self.timed_out = False
+
+                else: # Restore the worker
+                    self.timed_out = False
+                log(f'{self.id} ---------------- {self.timed_out}')
+
+            # Execute task
+            if self.task:
+                if self.id: self.pool.unidler(self.id) # Unregister idleness
+                self.new = False
+
+                try:
+                    self.task()
+                except Exception as error:
+                    # Handle exceptions with priority list -
+                    # task's `error_handler` argument > Pool()'s `error_handler` argument > default `ERROR_HANDLER`
+                    self.task.parameters["error_handler"](error, self.task, *self.task.parameters["args"], **self.task.parameters["kwargs"])
+
+                self.task = None # Clear task.
+                if self.id: self.pool.idler(self.id) # Register idleness.
+
+        if self.id: self.resign()
+
+    def assign(self, task):
+        self.task = task
+
+        # Unlock worker
+        self.lock.set()
+
+    def resign(self):
+        self.new = False
+
+        self.pool.size -= 1
+
+        self.pool.unidler(self.id)
+        del self.pool.workers[self.id]
+        log(f'{self.id} killed')
+
+
+class TaskIO(io.TextIOWrapper):
+    def __init__(self,
+                encoding: str | None = None,
+                errors: str | None = None,
+                newline: str | None = None,
+                line_buffering: bool = False,
+                write_through: bool = False
+                ):
+        r, w = os.pipe()
+        kwargs = {key:value for (key, value) in {"encoding": encoding, "errors": errors, "newline": newline}.items() if value}
+        self.r, self.w = os.fdopen(r, "r", **kwargs), os.fdopen(w, "w", **kwargs)
+        
+        super().__init__(self.r.buffer, encoding, errors, newline, line_buffering, write_through)
+        self.mode = "r+"
+
+        self.flush = self.w.flush
+        self.truncate = self.w.truncate
+        self.writable = self.w.writable
+        self.write = self.w.write
+        self.writelines = self.w.writelines
+
+    def close(self):
+        self.r.close()
+        self.w.close()
+
+    # The following do not work:
+        # seek()
+        # tell()
+        # truncate()
+
+class Task:
+    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, priority=1, weight=1, interactive=False):
+        self.action = target
+        self.id = id
+        self.priority = priority
+        self.weight = weight
+        self.interactive = interactive
+        if self.interactive: self.interact()
+
+        self.parameters = {
+            "args": args,
+            "kwargs": kwargs,
+            "error_handler": error_handler
+        }
+
+        self.listeners = {
+            "once": {},
+            "on": {}
+        }
+
+        self.attempts = 0
+        self.completes = 0
+        self.fails = 0
+
+        self.result = None
+
+        self.started = False
+        self.completed = False
+        self.status = "pending"
+
+        self.lock = threading.Event()
+
+    def reset(self):
+        self.result = None
+        self.started = False
+        self.completed = False
+        self.status = "pending"
+
+        self.lock.clear()
+
+    def __call__(self):
+        self.attempts += 1
+        self.setstatus("started")
+
+        try:
+            if self.interactive:
+                self.result = self.action(self, *self.parameters["args"], **self.parameters["kwargs"])
+            else:
+                self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
+        except Exception as error:
+            self.fails += 1
+            self.lock.set()
+            self.setstatus("failed")
+            raise error
+        else:
+            self.completes += 1
+            self.lock.set()
+            self.setstatus("completed")
+
+    def interact(self):
+        self.interactive = True
+        self.stdin, self.stdout, self.stderr = TaskIO(), TaskIO(), TaskIO() # Should all 3 be created even if not needed?
+
+    def setstatus(self, status):
+        self.status = status
+
+        if status == "started":
+            self.started = True
+            self.emit("started")
+        elif status == "completed":
+            self.completed = True
+            self.emit("completed")
+        elif status == "failed":
+            self.completed = True
+            self.emit("failed")
+
+        self.emit("statuschange", status)
+
+    def once(self, event, action):
+        if event not in self.listeners["once"]:
+            self.listeners["once"][event] = []
+        self.listeners["once"][event].append(action)
+
+    def on(self, event: str, action):
+        if event not in self.listeners["on"]:
+            self.listeners["on"][event] = []
+        self.listeners["on"][event].append(action)
+
+    def emit(self, event, *args): # Should this be merged with `setstatus` later, for space management?
+        if event in self.listeners["once"]:
+            for action in self.listeners["once"][event]:
+                action(*args)
+            del self.listeners["once"][event]
+
+        if event in self.listeners["on"]:
+            for action in self.listeners["on"][event]:
+                action(*args)
+
+    def wait(self, timeout=None):
+        if timeout == None:
+            return self.lock.wait()
+        else:
+            return self.lock.wait(timeout=timeout)
+
+    def getresult(self):
+        self.lock.wait()
+        return self.result
+    
+
+class Input:
+    def __init__(self, args: tuple | dict = (), kwargs: dict | None = None):
+        if type(args) == tuple:
+            self.args = args
+
+            if type(kwargs) == dict or kwargs is None:
+                self.kwargs = kwargs or {}
+            else:
+                raise TypeError("kwargs can only be a dictionary or None.")
+            
+        elif type(args) == dict:
+            self.args = ()
+            self.kwargs = args
+
+            if kwargs != None:
+                raise TypeError("kwargs can only be None when args is a dictionary.")
+            
+        else:
+            raise TypeError("args can only be a tuple or dictionary.")
+
+
 class Pool:
     def __init__(self,
                  timeout=TIMEOUT,
@@ -76,14 +313,14 @@ class Pool:
         self.pending = {p: 0 for p in range(self.priority_levels)}
         self.focus: None | int = None
 
-        self.manager = None
-        self.hirer = None
+        self._manager = Worker(self)
+        self._hirer = Worker(self)
 
     def idler(self, id):
         if self.workers[id].active:
             self.idle.append(id)
 
-            # Unlock manager
+            # Unlock manager or stop
             self.waiter.set()
 
     def unidler(self, id):
@@ -131,13 +368,11 @@ class Pool:
 
             self.working = True
 
-            manager = Worker(self)
-            manager.start()
-            manager.assign(Task(self.manager, id="manager"))
+            self._manager.start()
+            self._manager.assign(Task(self.manager, id="manager"))
 
-            hirer = Worker(self)
-            hirer.start()
-            hirer.assign(Task(self.hirer, id="hirer"))
+            self._hirer.start()
+            self._hirer.assign(Task(self.hirer, id="hirer"))
 
             self.hire(workers)
 
@@ -153,25 +388,36 @@ class Pool:
             except RuntimeError:
                 pass
 
+            size = self.size
+
+            self._hirer.active = False
+            self._hirer.lock.set() # Unlock hirer
+
             try:
                 self.queuer.release()
             except RuntimeError:
                 pass
 
+            self._manager.active = False
+            self._manager.lock.set() # Unlock manager
+
             self.stopper.wait()
             self.stopper.clear()
-
-            print(self.size)
 
             for role in dict(self.members):
                 self.terminate(role)
 
             while self.size:
+                self.waiter.wait() # Wait for `idle` to be updated.
+                self.waiter.clear()
+    
                 for id in self.idle:
                     try:
                         self.fire(id)
                     except (RuntimeError, KeyError):
                         pass
+
+            print(size)
 
         else:
             raise RuntimeError("Pool stopped already.")
@@ -560,242 +806,6 @@ class Pool:
                 self.hiring.release()
             except RuntimeError:
                 pass
-
-
-class Worker(threading.Thread):
-    def __init__(self, pool=Pool(), id=0):
-        threading.Thread.__init__(self)
-
-        self.pool = pool
-        self.id = id
-
-        self.active = True
-        self.new = True
-        self.task: Task = None
-        self.lock = threading.Event()
-        self.access = threading.Lock()
-        self.timed_out = False
-
-    def run(self):
-        while self.active and (self.pool.working or self.pool.priorities or self.task): # If pool is still working/busy, or a rare case where task has been assigned between `idler()` call and `stop()` call.
-            # Wait for task to be assigned, and worker unlocked.
-            locked = self.lock.wait(timeout=TIMEOUT)
-            self.lock.clear()
-            log(f'{self.id} lock: {locked}')
-
-            # Handle timeout.
-            if not locked:
-                # Probe the worker
-                self.timed_out = True # First suspend the worker
-                if not self.task: # Be sure a task has not been assigned between timeout expire and worker suspension.
-
-                    # Killing a thread and recreating a new one is expensive.
-                    # Simply renew an expired, unused thread or a scarce thread.
-                    with self.pool.prober:
-                        if not self.new and (self.pool.size > MIN_WORKERS or not self.id): # Kill the worker
-                            log(f'{self.id} probing')
-                            log(self.pool.workers)
-                            log(self.pool.idle)
-                            print(f"{self.id} timing out")
-                            break
-                        else: # Restore the worker
-                            self.timed_out = False
-
-                else: # Restore the worker
-                    self.timed_out = False
-                log(f'{self.id} ---------------- {self.timed_out}')
-
-            # Execute task
-            if self.task:
-                if self.id: self.pool.unidler(self.id) # Unregister idleness
-                self.new = False
-
-                try:
-                    self.task()
-                except Exception as error:
-                    # Handle exceptions with priority list -
-                    # task's `error_handler` argument > Pool()'s `error_handler` argument > default `ERROR_HANDLER`
-                    self.task.parameters["error_handler"](error, self.task, *self.task.parameters["args"], **self.task.parameters["kwargs"])
-
-                self.task = None # Clear task.
-                if self.id: self.pool.idler(self.id) # Register idleness.
-
-        if self.id: self.resign()
-
-    def assign(self, task):
-        self.task = task
-
-        # Unlock worker
-        self.lock.set()
-
-    def resign(self):
-        self.new = False
-
-        self.pool.size -= 1
-
-        self.pool.unidler(self.id)
-        del self.pool.workers[self.id]
-        log(f'{self.id} killed')
-
-
-class TaskIO(io.TextIOWrapper):
-    def __init__(self,
-                encoding: str | None = None,
-                errors: str | None = None,
-                newline: str | None = None,
-                line_buffering: bool = False,
-                write_through: bool = False
-                ):
-        r, w = os.pipe()
-        kwargs = {key:value for (key, value) in {"encoding": encoding, "errors": errors, "newline": newline}.items() if value}
-        self.r, self.w = os.fdopen(r, "r", **kwargs), os.fdopen(w, "w", **kwargs)
-        
-        super().__init__(self.r.buffer, encoding, errors, newline, line_buffering, write_through)
-        self.mode = "r+"
-
-        self.flush = self.w.flush
-        self.truncate = self.w.truncate
-        self.writable = self.w.writable
-        self.write = self.w.write
-        self.writelines = self.w.writelines
-
-    def close(self):
-        self.r.close()
-        self.w.close()
-
-    # The following do not work:
-        # seek()
-        # tell()
-        # truncate()
-
-class Task:
-    def __init__(self, target, args=(), kwargs={}, error_handler=ERROR_HANDLER, id=None, priority=1, weight=1, interactive=False):
-        self.action = target
-        self.id = id
-        self.priority = priority
-        self.weight = weight
-        self.interactive = interactive
-        if self.interactive: self.interact()
-
-        self.parameters = {
-            "args": args,
-            "kwargs": kwargs,
-            "error_handler": error_handler
-        }
-
-        self.listeners = {
-            "once": {},
-            "on": {}
-        }
-
-        self.attempts = 0
-        self.completes = 0
-        self.fails = 0
-
-        self.result = None
-
-        self.started = False
-        self.completed = False
-        self.status = "pending"
-
-        self.lock = threading.Event()
-
-    def reset(self):
-        self.result = None
-        self.started = False
-        self.completed = False
-        self.status = "pending"
-
-        self.lock.clear()
-
-    def __call__(self):
-        self.attempts += 1
-        self.setstatus("started")
-
-        try:
-            if self.interactive:
-                self.result = self.action(self, *self.parameters["args"], **self.parameters["kwargs"])
-            else:
-                self.result = self.action(*self.parameters["args"], **self.parameters["kwargs"])
-        except Exception as error:
-            self.fails += 1
-            self.lock.set()
-            self.setstatus("failed")
-            raise error
-        else:
-            self.completes += 1
-            self.lock.set()
-            self.setstatus("completed")
-
-    def interact(self):
-        self.interactive = True
-        self.stdin, self.stdout, self.stderr = TaskIO(), TaskIO(), TaskIO() # Should all 3 be created even if not needed?
-
-    def setstatus(self, status):
-        self.status = status
-
-        if status == "started":
-            self.started = True
-            self.emit("started")
-        elif status == "completed":
-            self.completed = True
-            self.emit("completed")
-        elif status == "failed":
-            self.completed = True
-            self.emit("failed")
-
-        self.emit("statuschange", status)
-
-    def once(self, event, action):
-        if event not in self.listeners["once"]:
-            self.listeners["once"][event] = []
-        self.listeners["once"][event].append(action)
-
-    def on(self, event: str, action):
-        if event not in self.listeners["on"]:
-            self.listeners["on"][event] = []
-        self.listeners["on"][event].append(action)
-
-    def emit(self, event, *args): # Should this be merged with `setstatus` later, for space management?
-        if event in self.listeners["once"]:
-            for action in self.listeners["once"][event]:
-                action(*args)
-            del self.listeners["once"][event]
-
-        if event in self.listeners["on"]:
-            for action in self.listeners["on"][event]:
-                action(*args)
-
-    def wait(self, timeout=None):
-        if timeout == None:
-            return self.lock.wait()
-        else:
-            return self.lock.wait(timeout=timeout)
-
-    def getresult(self):
-        self.lock.wait()
-        return self.result
-    
-
-class Input:
-    def __init__(self, args: tuple | dict = (), kwargs: dict | None = None):
-        if type(args) == tuple:
-            self.args = args
-
-            if type(kwargs) == dict or kwargs is None:
-                self.kwargs = kwargs or {}
-            else:
-                raise TypeError("kwargs can only be a dictionary or None.")
-            
-        elif type(args) == dict:
-            self.args = ()
-            self.kwargs = args
-
-            if kwargs != None:
-                raise TypeError("kwargs can only be None when args is a dictionary.")
-            
-        else:
-            raise TypeError("args can only be a tuple or dictionary.")
 
 
 def log(msg):
