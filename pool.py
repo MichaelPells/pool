@@ -108,6 +108,9 @@ class Worker(threading.Thread):
 
         self.pool.unidler(self.id)
         del self.pool.workers[self.id]
+
+        self.pool.delister.set()
+
         log(f'{self.id} killed')
 
 
@@ -293,10 +296,11 @@ class Pool:
         self.priority_levels = priority_levels
 
         self.queuer = threading.Lock()
+        self.hiring = threading.Lock()
         self.prober = threading.Lock()
         self.waiter = threading.Event()
         self.stopper = threading.Event()
-        self.hiring = threading.Lock()
+        self.delister = threading.Event()
 
         self.working = False
         self.workers = {}
@@ -320,7 +324,7 @@ class Pool:
         if self.workers[id].active:
             self.idle.append(id)
 
-            # Unlock manager or stop
+            # Unlock manager
             self.waiter.set()
 
     def unidler(self, id):
@@ -407,15 +411,16 @@ class Pool:
             for role in dict(self.members):
                 self.terminate(role)
 
+            for id in self.idle:
+                try:
+                    self.fire(id)
+                except (RuntimeError, KeyError):
+                    pass
+
+            self.delister.set()
             while self.size:
-                self.waiter.wait() # Wait for `idle` to be updated.
-                self.waiter.clear()
-    
-                for id in self.idle:
-                    try:
-                        self.fire(id)
-                    except (RuntimeError, KeyError):
-                        pass
+                self.delister.wait() # Wait for next worker(s) to be delisted.
+                self.delister.clear()
 
             print(size)
 
