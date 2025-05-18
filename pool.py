@@ -349,7 +349,7 @@ class Pool:
 
         return self.size
 
-    def fire(self, id=None): # There is a serious problem here!
+    def fire(self, id=None):
         if id == None:
             id = self.size
 
