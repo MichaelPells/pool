@@ -103,6 +103,11 @@ class Network:
             self.pool.stop()
 
 
+class Data:
+    def __init__(self):
+        ...
+
+
 class Instance:
     def __init__(self, id, network: Network):
         self.id = id
@@ -110,6 +115,8 @@ class Instance:
 
         self.stages = {}
         self.indexedstatuses = 0
+
+        self.data = Data()
 
     def addstage(self, stage, status=0):
         return self.addstages([stage], status)
@@ -169,6 +176,12 @@ class Instance:
 
         operation = self.network.pool.assign(node, Input=Input(data), behaviour=behaviour)
         return operation
+    
+    def set(self, key, value):
+        self.data.__setattr__(key, value)
+
+    def get(self, key):
+        return self.data.__getattribute__(key)
 
 
 import time
