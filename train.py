@@ -35,7 +35,7 @@ class Network:
         self.defaultstages.extend(stages)
 
     def run(self):
-        instance_id = 0
+        id = 0
 
         while self.running:
             try:
@@ -52,14 +52,14 @@ class Network:
             status = INPUT["status"] if "status" in INPUT else "entrypoint"
 
             if "instance" not in INPUT:
-                instance_id += 1
-                instance = self.instances[instance_id] = Instance(instance_id, self)
+                id += 1
+                instance = self.instances[id] = Instance(id, self)
 
                 instance.addstages(self.defaultstages, status)
 
             else:
-                instance_id = INPUT["instance"]
-                instance = self.instances[instance_id]
+                id = INPUT["instance"]
+                instance = self.instances[id]
 
             input = INPUT["input"] if "input" in INPUT else None
 
@@ -104,8 +104,8 @@ class Network:
 
 
 class Instance:
-    def __init__(self, instance_id, network: Network):
-        self.instance_id = instance_id
+    def __init__(self, id, network: Network):
+        self.id = id
         self.network = network
 
         self.stages = {}
@@ -141,7 +141,7 @@ class Instance:
 
         def do():
             self.network.do({
-                "instance": self.instance_id,
+                "instance": self.id,
                 "status": status,
                 "input": task.result
             })
@@ -161,13 +161,13 @@ class Instance:
         def behaviour(operation):
             def do():
                 self.network.do({
-                    "instance": self.instance_id,
+                    "instance": self.id,
                     "status": status,
                     "input": operation.result
                 })
             operation.once("completed", do)
 
-        operation = self.network.pool.assign(node, (), data, behaviour=behaviour)
+        operation = self.network.pool.assign(node, Input=Input(data), behaviour=behaviour)
         return operation
 
 
