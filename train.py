@@ -2,6 +2,18 @@ from pool import Pool, Task, Input
 import threading
 
 
+class Database:
+    def __init__(self):
+        self.tables = {}
+
+    def create(self, name, columns=[], entries=[]):
+        columns = {name:column for column, name in enumerate(columns)}
+        self.tables[name] = {
+            columns: columns,
+            entries: entries
+        }
+
+
 class Network:
     def __init__(self, app):
         self.app = app
@@ -14,6 +26,7 @@ class Network:
         self.inputs = []
         self.defaultstages = []
         self.instances = {}
+        self.database = Database()
         self.running = False
 
         self.app(self)
