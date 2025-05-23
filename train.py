@@ -7,11 +7,20 @@ class Database:
         self.tables = {}
 
     def create(self, name, columns=[], entries=[]):
-        columns = {name:column for column, name in enumerate(columns)}
+        columns = {name:index for index, name in enumerate(columns)}
         self.tables[name] = {
             columns: columns,
             entries: entries
         }
+
+    def read(self):
+        ...
+
+    def update(self):
+        ...
+
+    def delete(self, name):
+        del self.tables[name]
 
 
 class Network:
