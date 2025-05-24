@@ -2,25 +2,72 @@ from pool import Pool, Task, Input
 import threading
 
 
+class Null: ...
+
 class Database:
     def __init__(self):
+        self.lock = threading.Lock()
+
         self.tables = {}
+        self.null = Null()
+
+    def _buildindex(self, name, rows=[], columns=[]):
+        table = self.tables[name]
+        columns = {column: table['columns'][column] for column in columns} or table['columns']
+        entries = table['entries']
+        indexes = table['indexes']
+
+        for column in columns:
+            indexes[column] = {}
+
+        for index in rows or range(len(entries)):
+            for column, offset in columns.items():
+                row = entries[index]
+                field = row[offset] or self.null
+
+                if field not in indexes[column]:
+                    indexes[column][field] = {}
+
+                indexes[column][field][index] = index
+
+    def _select(self, name, queries: dict, operations):
+        table = self.tables[name]
+        results = {}
+
+        for column, value in queries.items():
+            if value not in table['indexes'][column]:
+                results[column] = []
+                pass
+
+            results[column] = list(table['indexes'][column][value].keys())
+
+
 
     def create(self, name, columns=[], entries=[]):
-        columns = {name:index for index, name in enumerate(columns)}
+        columns = {column: offset for offset, column in enumerate(columns)}
         self.tables[name] = {
-            columns: columns,
-            entries: entries
+            'columns': columns,
+            'entries': entries,
+            'indexes': {}
         }
 
-    def read(self):
+    def read(self, name):
+        return self.tables[name]
+
+    def select(self, name, queries):
         ...
 
-    def update(self):
+    def update(self, name, queries):
         ...
+
+    def insert(self, name, entries):
+        [self.tables[name]['entries']].join(entries)
 
     def delete(self, name):
         del self.tables[name]
+
+    def remove(self, name, queries):
+        ...
 
 
 class Network:
