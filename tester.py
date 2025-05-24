@@ -164,8 +164,8 @@
 # # y.write(x.buffer)
 # # x.write("Hello\nHi\n")
 # # print(z.read(3))
-class x:
-    pass
-y = x()
-a = {y:2}
-print(a[y])
+
+a = [1,2,3]
+b = [2,3]
+
+print(set(a).union())

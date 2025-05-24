@@ -3,13 +3,29 @@ import threading
 
 
 class Null: ...
+class Any:
+    def __init__(self, values: list):
+        self.values = values
 
 class Database:
     def __init__(self):
         self.lock = threading.Lock()
 
         self.tables = {}
-        self.null = Null()
+        self.NULL = Null()
+        self.ANY = Any
+
+
+    def AND(self, name, **queries):
+        results = []
+
+        for column, value in queries.items():
+            results.append(self._select(name, column, value))
+
+        operation = set(results[0]).intersection(*results[1:])
+
+        return list(operation)
+
 
     def _buildindex(self, name, rows=[], columns=[]):
         table = self.tables[name]
@@ -23,25 +39,29 @@ class Database:
         for index in rows or range(len(entries)):
             for column, offset in columns.items():
                 row = entries[index]
-                field = row[offset] or self.null
+                field = row[offset] or self.NULL
 
                 if field not in indexes[column]:
                     indexes[column][field] = {}
 
                 indexes[column][field][index] = index
 
-    def _select(self, name, queries: dict, operations):
-        table = self.tables[name]
-        results = {}
+    def _select(self, name, column, value):
+        if type(value) == self.ANY:
+            values = value.values
+        else:
+            values = [value]
 
-        for column, value in queries.items():
-            if value not in table['indexes'][column]:
-                results[column] = []
-                pass
+        column = self.tables[name]['indexes'][column]
+        results = []
 
-            results[column] = list(table['indexes'][column][value].keys())
+        for value in values:
+            if value not in column:
+                results.append([])
 
-
+            results.append(column[value].keys())
+    
+        return list(set(results[0]).union(*results[1:]))
 
     def create(self, name, columns=[], entries=[]):
         columns = {column: offset for offset, column in enumerate(columns)}
@@ -51,8 +71,16 @@ class Database:
             'indexes': {}
         }
 
-    def read(self, name):
-        return self.tables[name]
+    def read(self, name, rows=[]):
+        if not rows:
+            return self.tables[name]['entries']
+
+        result = []
+
+        for index in rows:
+            result.append(self.tables[name]['entries'][index])
+
+        return result
 
     def select(self, name, queries):
         ...
