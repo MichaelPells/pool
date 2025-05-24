@@ -15,18 +15,6 @@ class Database:
         self.NULL = Null()
         self.ANY = Any
 
-
-    def AND(self, name, **queries):
-        results = []
-
-        for column, value in queries.items():
-            results.append(self._select(name, column, value))
-
-        operation = set(results[0]).intersection(*results[1:])
-
-        return list(operation)
-
-
     def _buildindex(self, name, rows=[], columns=[]):
         table = self.tables[name]
         columns = {column: table['columns'][column] for column in columns} or table['columns']
@@ -39,14 +27,14 @@ class Database:
         for index in rows or range(len(entries)):
             for column, offset in columns.items():
                 row = entries[index]
-                field = row[offset] or self.NULL
+                field = row[offset] or self.NULL # Only works for strings for now!
 
                 if field not in indexes[column]:
                     indexes[column][field] = {}
 
                 indexes[column][field][index] = index
 
-    def _select(self, name, column, value):
+    def _select(self, name, rows=[], column=None, value=None): # What should really be the defaults here?
         if type(value) == self.ANY:
             values = value.values
         else:
@@ -59,9 +47,48 @@ class Database:
             if value not in column:
                 results.append([])
 
-            results.append(column[value].keys())
+            result = column[value].keys()
+
+            if rows:
+                result = set(results).intersection(rows)
+
+            results.append(result)
     
         return list(set(results[0]).union(*results[1:]))
+
+    def _selector(self, name, operands):
+        results = []
+
+        for operand in operands:
+            if type(operand) == dict:
+                queries = operand
+
+                for column, value in queries.items():
+                    results.append(self._select(name, column, value))
+
+            elif type(operand) == list:
+                results.append(operand)
+
+        return results
+    
+    def AND(self, name, *operands):
+        results = self._selector(name, operands)
+        operation = set(results[0]).intersection(*results[1:])
+
+        return list(operation)
+    
+    def OR(self, name, *operands):
+        results = self._selector(name, operands)
+        operation = set(results[0]).union(*results[1:])
+
+        return list(operation)
+    
+    def NOT(self, name, operand):
+        results = self._selector(name, [operand])
+        superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
+        operation = set(superset).difference(results[0])
+
+        return list(operation)
 
     def create(self, name, columns=[], entries=[]):
         columns = {column: offset for offset, column in enumerate(columns)}
@@ -72,6 +99,9 @@ class Database:
         }
 
     def read(self, name, rows=[]):
+        ...
+
+    def view(self, name, rows=[]):
         if not rows:
             return self.tables[name]['entries']
 
@@ -81,9 +111,6 @@ class Database:
             result.append(self.tables[name]['entries'][index])
 
         return result
-
-    def select(self, name, queries):
-        ...
 
     def update(self, name, queries):
         ...
