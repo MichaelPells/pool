@@ -121,8 +121,18 @@ class Database:
     def delete(self, name):
         del self.tables[name]
 
-    def remove(self, name, queries):
-        ...
+    def remove(self, name, rows=[]):
+        table = self.tables[name]
+
+        if not rows:
+            rows = table['entries']
+
+        for index in rows:
+            for column, offset in table['columns']:
+                field = table['entries'][index][offset]
+                del table['columns'][column][field][index]
+
+            table['entries'].pop(index)
 
 
 class Network:
