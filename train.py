@@ -114,8 +114,28 @@ class Database:
 
         return result
 
-    def update(self, name, queries):
-        ...
+    def update(self, name, rows=[], record={}):
+        table = self.tables[name]
+
+        if not rows:
+            rows = range(len(table['entries']))
+ 
+        columns = {}
+
+        for column, value in record.items():
+            offset = table['columns'][column]
+            columns[column] = offset
+
+            for index in rows:
+                field = table['entries'][index][offset]
+
+                del table['indexes'][column][field][index]
+                if not table['indexes'][column][field]:
+                    del table['indexes'][column][field]
+
+                table['entries'][index][offset] = value
+
+        self._buildindex(name, rows, columns)
 
     def insert(self, name, entries):
         start = len(self.tables[name]['entries'])
@@ -129,12 +149,15 @@ class Database:
         table = self.tables[name]
 
         if not rows:
-            rows = table['entries']
+            rows = range(len(table['entries']))
 
         for index in rows:
             for column, offset in table['columns']:
                 field = table['entries'][index][offset]
-                del table['columns'][column][field][index]
+
+                del table['indexes'][column][field][index]
+                if not table['indexes'][column][field]:
+                    del table['indexes'][column][field]
 
             table['entries'].pop(index)
 
