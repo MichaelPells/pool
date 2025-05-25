@@ -98,6 +98,8 @@ class Database:
             'indexes': {}
         }
 
+        self._buildindex(name)
+
     def read(self, name, rows=[]):
         ...
 
@@ -116,7 +118,9 @@ class Database:
         ...
 
     def insert(self, name, entries):
-        [self.tables[name]['entries']].join(entries)
+        start = len(self.tables[name]['entries'])
+        self.tables[name]['entries'].extend(entries)
+        self._buildindex(name, rows=range(start, len(self.tables[name]['entries'])))
 
     def delete(self, name):
         del self.tables[name]
