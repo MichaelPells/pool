@@ -3,9 +3,14 @@ import threading
 
 
 class Null: ...
+
 class Any:
     def __init__(self, values: list):
         self.values = values
+
+class Rows:
+    def __init__(self, rows=[]):
+        self.rows = list(rows)
 
 class Database:
     def __init__(self):
@@ -15,7 +20,7 @@ class Database:
         self.NULL = Null()
         self.ANY = Any
 
-    def _buildindex(self, name, rows=[], columns=[]):
+    def _buildindex(self, name, rows=Rows(), columns=[]):
         table = self.tables[name]
         columns = {column: table['columns'][column] for column in columns} or table['columns']
         entries = table['entries']
@@ -24,7 +29,9 @@ class Database:
         for column in columns:
             indexes[column] = {}
 
-        for index in rows or range(len(entries)):
+        rows = rows.rows or Rows(range(len(entries))).rows
+
+        for index in rows:
             for column, offset in columns.items():
                 row = entries[index]
                 field = row[offset] or self.NULL # Only works for strings for now!
@@ -64,10 +71,10 @@ class Database:
                 queries = operand
 
                 for column, value in queries.items():
-                    results.append(self._select(name, column, value))
+                    results.append(self._select(name=name, column=column, value=value))
 
-            elif type(operand) == list:
-                results.append(operand)
+            elif type(operand) == Rows:
+                results.append(operand.rows)
 
         return results
     
@@ -75,20 +82,20 @@ class Database:
         results = self._selector(name, operands)
         operation = set(results[0]).intersection(*results[1:])
 
-        return list(operation)
+        return Rows(operation)
     
     def OR(self, name, *operands):
         results = self._selector(name, operands)
         operation = set(results[0]).union(*results[1:])
 
-        return list(operation)
+        return Rows(operation)
     
     def NOT(self, name, operand):
         results = self._selector(name, [operand])
         superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
         operation = set(superset).difference(results[0])
 
-        return list(operation)
+        return Rows(operation)
 
     def create(self, name, columns=[], entries=[]):
         columns = {column: offset for offset, column in enumerate(columns)}
@@ -103,9 +110,8 @@ class Database:
     def read(self, name, rows=[]):
         ...
 
-    def view(self, name, rows=[]):
-        if not rows:
-            return self.tables[name]['entries']
+    def view(self, name, rows=Rows()):
+        rows = rows.rows or Rows(range(len(self.tables[name]['entries']))).rows
 
         result = []
 
@@ -114,11 +120,10 @@ class Database:
 
         return result
 
-    def update(self, name, rows=[], record={}):
+    def update(self, name, rows=Rows(), record={}):
         table = self.tables[name]
 
-        if not rows:
-            rows = range(len(table['entries']))
+        rows = rows.rows or Rows(range(len(table['entries']))).rows
  
         columns = {}
 
@@ -145,11 +150,10 @@ class Database:
     def delete(self, name):
         del self.tables[name]
 
-    def remove(self, name, rows=[]):
+    def remove(self, name, rows=Rows()):
         table = self.tables[name]
 
-        if not rows:
-            rows = range(len(table['entries']))
+        rows = rows.rows or Rows(range(len(table['entries']))).rows
 
         for index in rows:
             for column, offset in table['columns']:
