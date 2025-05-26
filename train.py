@@ -41,7 +41,7 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def _select(self, name, rows=[], column=None, value=None): # What should really be the defaults here?
+    def _select(self, name, column=None, value=None): # What should really be the defaults here?
         if type(value) == self.ANY:
             values = value.values
         else:
@@ -55,10 +55,6 @@ class Database:
                 results.append([])
 
             result = column[value].keys()
-
-            if rows:
-                result = set(results).intersection(rows)
-
             results.append(result)
     
         return list(set(results[0]).union(*results[1:]))
