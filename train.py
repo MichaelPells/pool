@@ -75,91 +75,101 @@ class Database:
         return results
     
     def AND(self, name, *operands):
-        results = self._selector(name, operands)
-        operation = set(results[0]).intersection(*results[1:])
+        with self.lock:
+            results = self._selector(name, operands)
+            operation = set(results[0]).intersection(*results[1:])
 
-        return Rows(operation)
+            return Rows(operation)
     
     def OR(self, name, *operands):
-        results = self._selector(name, operands)
-        operation = set(results[0]).union(*results[1:])
+        with self.lock:
+            results = self._selector(name, operands)
+            operation = set(results[0]).union(*results[1:])
 
-        return Rows(operation)
+            return Rows(operation)
     
     def NOT(self, name, operand):
-        results = self._selector(name, [operand])
-        superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
-        operation = set(superset).difference(results[0])
+        with self.lock:
+            results = self._selector(name, [operand])
+            superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
+            operation = set(superset).difference(results[0])
 
-        return Rows(operation)
+            return Rows(operation)
 
     def create(self, name, columns=[], entries=[]):
-        columns = {column: offset for offset, column in enumerate(columns)}
-        self.tables[name] = {
-            'columns': columns,
-            'entries': entries,
-            'indexes': {}
-        }
+        with self.lock:
+            columns = {column: offset for offset, column in enumerate(columns)}
+            self.tables[name] = {
+                'columns': columns,
+                'entries': entries,
+                'indexes': {}
+            }
 
-        self._buildindex(name)
+            self._buildindex(name)
 
-    def read(self, name, rows=[]):
-        ...
+    def read(self, name, rows=Rows()):
+        with self.lock:
+            ...
 
     def view(self, name, rows=Rows()):
-        rows = rows.rows or Rows(range(len(self.tables[name]['entries']))).rows
+        with self.lock:
+            rows = rows.rows or Rows(range(len(self.tables[name]['entries']))).rows
 
-        result = []
-
-        for index in rows:
-            result.append(self.tables[name]['entries'][index])
-
-        return result
-
-    def update(self, name, rows=Rows(), record={}):
-        table = self.tables[name]
-
-        rows = rows.rows or Rows(range(len(table['entries']))).rows
- 
-        columns = {}
-
-        for column, value in record.items():
-            offset = table['columns'][column]
-            columns[column] = offset
+            result = []
 
             for index in rows:
-                field = table['entries'][index][offset]
+                result.append(self.tables[name]['entries'][index])
 
-                del table['indexes'][column][field][index]
-                if not table['indexes'][column][field]:
-                    del table['indexes'][column][field]
+            return result
 
-                table['entries'][index][offset] = value
+    def update(self, name, rows=Rows(), record={}):
+        with self.lock:
+            table = self.tables[name]
 
-        self._buildindex(name, rows, columns)
+            rows = rows.rows or Rows(range(len(table['entries']))).rows
+    
+            columns = {}
+
+            for column, value in record.items():
+                offset = table['columns'][column]
+                columns[column] = offset
+
+                for index in rows:
+                    field = table['entries'][index][offset]
+
+                    del table['indexes'][column][field][index]
+                    if not table['indexes'][column][field]:
+                        del table['indexes'][column][field]
+
+                    table['entries'][index][offset] = value
+
+            self._buildindex(name, rows, columns)
 
     def insert(self, name, entries):
-        start = len(self.tables[name]['entries'])
-        self.tables[name]['entries'].extend(entries)
-        self._buildindex(name, rows=range(start, len(self.tables[name]['entries'])))
+        with self.lock:
+            start = len(self.tables[name]['entries'])
+            self.tables[name]['entries'].extend(entries)
+            self._buildindex(name, rows=range(start, len(self.tables[name]['entries'])))
 
     def delete(self, name):
-        del self.tables[name]
+        with self.lock:
+            del self.tables[name]
 
     def remove(self, name, rows=Rows()):
-        table = self.tables[name]
+        with self.lock:
+            table = self.tables[name]
 
-        rows = rows.rows or Rows(range(len(table['entries']))).rows
+            rows = rows.rows or Rows(range(len(table['entries']))).rows
 
-        for index in rows:
-            for column, offset in table['columns']:
-                field = table['entries'][index][offset]
+            for index in rows:
+                for column, offset in table['columns']:
+                    field = table['entries'][index][offset]
 
-                del table['indexes'][column][field][index]
-                if not table['indexes'][column][field]:
-                    del table['indexes'][column][field]
+                    del table['indexes'][column][field][index]
+                    if not table['indexes'][column][field]:
+                        del table['indexes'][column][field]
 
-            table['entries'].pop(index)
+                table['entries'].pop(index)
 
 
 class Network:
