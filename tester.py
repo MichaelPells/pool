@@ -165,7 +165,6 @@
 # # x.write("Hello\nHi\n")
 # # print(z.read(3))
 
-a = [1,2,3,4]
-b = {2,3}
-
-print(set(a).difference(b))
+a = {"x": 1, "z": 3}
+a["y"] = 2
+print(a)

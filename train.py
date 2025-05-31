@@ -8,9 +8,13 @@ class Any:
     def __init__(self, values: list):
         self.values = values
 
-class Rows:
+class Result:
     def __init__(self, rows=[]):
         self.rows = list(rows)
+        self.count = len(self.rows)
+
+    def get(self, row, column):
+        ...
 
 class Database:
     def __init__(self):
@@ -102,6 +106,7 @@ class Database:
             self.tables[name] = {
                 'columns': columns,
                 'entries': entries,
+                'references': {},
                 'indexes': {}
             }
 
