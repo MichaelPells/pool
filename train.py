@@ -24,7 +24,7 @@ class Database:
         self.NULL = Null()
         self.ANY = Any
 
-    def _buildindex(self, name, rows=Rows(), columns=[]):
+    def _buildindex(self, name, rows=Result(), columns=[]):
         table = self.tables[name]
         columns = {column: table['columns'][column] for column in columns} or table['columns']
         entries = table['entries']
@@ -33,7 +33,7 @@ class Database:
         for column in columns:
             indexes[column] = {}
 
-        rows = rows.rows or Rows(range(len(entries))).rows
+        rows = rows.rows or Result(table['entries'].keys()).rows
 
         for index in rows:
             for column, offset in columns.items():
@@ -73,7 +73,7 @@ class Database:
                 for column, value in queries.items():
                     results.append(self._select(name=name, column=column, value=value))
 
-            elif type(operand) == Rows:
+            elif type(operand) == Result:
                 results.append(operand.rows)
 
         return results
@@ -83,14 +83,14 @@ class Database:
             results = self._selector(name, operands)
             operation = set(results[0]).intersection(*results[1:])
 
-            return Rows(operation)
+            return Result(operation)
     
     def OR(self, name, *operands):
         with self.lock:
             results = self._selector(name, operands)
             operation = set(results[0]).union(*results[1:])
 
-            return Rows(operation)
+            return Result(operation)
     
     def NOT(self, name, operand):
         with self.lock:
@@ -98,27 +98,32 @@ class Database:
             superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
             operation = set(superset).difference(results[0])
 
-            return Rows(operation)
+            return Result(operation)
 
-    def create(self, name, columns=[], entries=[]):
+    def create(self, name, columns=[], entries=[], primarykey=None):
         with self.lock:
             columns = {column: offset for offset, column in enumerate(columns)}
+            entries = {index + 1: entry for index, entry in enumerate(entries)}
+            count = len(entries)
             self.tables[name] = {
                 'columns': columns,
                 'entries': entries,
                 'references': {},
-                'indexes': {}
+                'indexes': {},
+                'count': count,
+                'lastindex': count,
+                'primarykey': primarykey
             }
 
             self._buildindex(name)
 
-    def read(self, name, rows=Rows()):
+    def read(self, name, rows=Result()):
         with self.lock:
             ...
 
-    def view(self, name, rows=Rows()):
+    def view(self, name, rows=Result()):
         with self.lock:
-            rows = rows.rows or Rows(range(len(self.tables[name]['entries']))).rows
+            rows = rows.rows or Result(range(len(self.tables[name]['entries']))).rows
 
             result = []
 
@@ -127,11 +132,11 @@ class Database:
 
             return result
 
-    def update(self, name, rows=Rows(), record={}):
+    def update(self, name, rows=Result(), record={}):
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Rows(range(len(table['entries']))).rows
+            rows = rows.rows or Result(range(len(table['entries']))).rows
     
             columns = {}
 
@@ -160,11 +165,11 @@ class Database:
         with self.lock:
             del self.tables[name]
 
-    def remove(self, name, rows=Rows()):
+    def remove(self, name, rows=Result()):
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Rows(range(len(table['entries']))).rows
+            rows = rows.rows or Result(range(len(table['entries']))).rows
 
             for index in rows:
                 for column, offset in table['columns']:
