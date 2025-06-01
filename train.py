@@ -61,8 +61,9 @@ class Database:
             if value not in column:
                 results.append([])
 
-            result = column[value].keys()
-            results.append(result)
+            else:
+                result = column[value].keys()
+                results.append(result)
     
         return list(set(results[0]).union(*results[1:]))
 
@@ -98,7 +99,7 @@ class Database:
     def NOT(self, name, operand):
         with self.lock:
             results = self._selector(name, [operand])
-            superset = range(len(self.tables[name]['entries'])) # Would we need to create an id (and size) field or variable later?
+            superset = range(self.tables[name]['entries'].keys())
             operation = set(superset).difference(results[0])
 
             return Result(operation)
@@ -127,12 +128,14 @@ class Database:
 
     def view(self, name, rows=Result()):
         with self.lock:
-            rows = rows.rows or Result(range(len(self.tables[name]['entries']))).rows
+            table = self.tables[name]
+
+            rows = rows.rows or Result(table['entries'].keys()).rows
 
             result = []
 
             for index in rows:
-                result.append(self.tables[name]['entries'][index])
+                result.append(table['entries'][index])
 
             return result
 
@@ -140,7 +143,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(range(len(table['entries']))).rows
+            rows = rows.rows or Result(table['entries'].keys()).rows
     
             columns = {}
 
@@ -180,7 +183,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(range(len(table['entries']))).rows
+            rows = rows.rows or Result(table['entries'].keys()).rows
 
             for index in rows:
                 for column, offset in table['columns']:
@@ -190,7 +193,9 @@ class Database:
                     if not table['indexes'][column][field]:
                         del table['indexes'][column][field]
 
-                table['entries'].pop(index)
+                del table['entries'][index]
+            
+            table['count'] -= len(rows)
 
 
 class Network:
