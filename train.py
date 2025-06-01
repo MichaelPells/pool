@@ -16,6 +16,9 @@ class Result:
     def get(self, row, column):
         ...
 
+    def sort(self, column, order):
+        return self
+
 class Database:
     def __init__(self):
         self.lock = threading.Lock()
