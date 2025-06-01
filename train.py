@@ -106,15 +106,16 @@ class Database:
     def create(self, name, columns=[], entries=[], primarykey=None):
         with self.lock:
             columns = {column: offset for offset, column in enumerate(columns)}
-            entries = {index + 1: entry for index, entry in enumerate(entries)}
+            entries = {(index + 1): entry for index, entry in enumerate(entries)}
             count = len(entries)
+
             self.tables[name] = {
                 'columns': columns,
                 'entries': entries,
                 'references': {},
                 'indexes': {},
                 'count': count,
-                'lastindex': count,
+                'nextindex': count + 1,
                 'primarykey': primarykey
             }
 
@@ -160,9 +161,16 @@ class Database:
 
     def insert(self, name, entries):
         with self.lock:
-            start = len(self.tables[name]['entries'])
-            self.tables[name]['entries'].extend(entries)
-            self._buildindex(name, rows=range(start, len(self.tables[name]['entries'])))
+            table = self.tables[name]
+            start = table['nextindex']
+            stop = start + len(entries)
+            entries = {(start + index): entry for index, entry in enumerate(entries)}
+
+            table['entries'].update(entries)
+            table['count'] += len(entries)
+            table['nextindex'] = stop
+
+            self._buildindex(name, rows=range(start, stop))
 
     def delete(self, name):
         with self.lock:
