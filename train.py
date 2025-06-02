@@ -41,7 +41,7 @@ class Database:
         for index in rows:
             for column, offset in columns.items():
                 row = entries[index]
-                field = row[offset] or self.NULL # Only works for strings for now!
+                field = row[offset]
 
                 if field not in indexes[column]:
                     indexes[column][field] = {}
@@ -194,7 +194,7 @@ class Database:
                         del table['indexes'][column][field]
 
                 del table['entries'][index]
-            
+
             table['count'] -= len(rows)
 
 

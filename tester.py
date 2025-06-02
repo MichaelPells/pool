@@ -165,6 +165,5 @@
 # # x.write("Hello\nHi\n")
 # # print(z.read(3))
 
-a = {"x": 1, "z": 3}
-a["y"] = 2
-print(a)
+a = {"x": 1, int: 3}
+print(a[int])
