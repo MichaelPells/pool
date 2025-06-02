@@ -9,12 +9,22 @@ class Any:
         self.values = values
 
 class Result:
-    def __init__(self, rows=[]):
+    def __init__(self, rows=[], tables={}):
         self.rows = list(rows)
+        self.tables = tables
+        self.primarytable = self.tables.keys()[0]
         self.count = len(self.rows)
 
-    def get(self, row, column):
-        ...
+    def get(self, row, column, table=None):
+        if table == None:
+            table = self.tables[self.primarytable]
+
+        index = self.rows[row]
+        entry = table['entries'][index]
+        offset = table['columns'][column]
+        field = entry[offset]
+        
+        return field
 
     def sort(self, column, order):
         return self
