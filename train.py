@@ -15,16 +15,43 @@ class Result:
         self.primarytable = self.tables.keys()[0]
         self.count = len(self.rows)
 
-    def get(self, row, column, table=None):
+    def get(self, row: Any | list, column: Any | list, table=None):
         if table == None:
             table = self.tables[self.primarytable]
 
-        index = self.rows[row]
-        entry = table['entries'][index]
-        offset = table['columns'][column]
-        field = entry[offset]
+        if type(row) != list:
+            index = self.rows[row]
+            entry = table['entries'][index]
+
+            if type(column) != list:
+                offset = table['columns'][column]
+                result = entry[offset] # field
+            else:
+                result = [] # record
+                for col in column:
+                    offset = table['columns'][col]
+                    field = entry[offset]
+                    record.append(field)
+        else:
+            entries = []
+            for index in row:
+                entry = table['entries'][index]
+
+                if type(column) != list:
+                    offset = table['columns'][column]
+                    record = entry[offset] # field
+                else:
+                    record = []
+                    for col in column:
+                        offset = table['columns'][col]
+                        field = entry[offset]
+                        record.append(field)
+
+                entries.append(record)
+
+            result = entries
         
-        return field
+        return result
 
     def sort(self, column, order):
         return self
