@@ -15,11 +15,35 @@ class Result:
         self.primarytable = self.tables.keys()[0]
         self.count = len(self.rows)
 
-    def get(self, row: Any | list, column: Any | list, table=None):
+    def get(self, row: list | Any, column: list | set | Any, table=None):
         if table == None:
             table = self.tables[self.primarytable]
 
-        if type(row) != list:
+        if type(row) == list:
+            entries = []
+            for index in row:
+                entry = table['entries'][index]
+
+                if type(column) == list:
+                    record = []
+                    for col in column:
+                        offset = table['columns'][col]
+                        field = entry[offset]
+                        record.append(field)
+                elif type(column) == set:
+                    record = {}
+                    for col in column:
+                        offset = table['columns'][col]
+                        field = entry[offset]
+                        record[col] = field
+                else:
+                    offset = table['columns'][column]
+                    record = entry[offset] # field
+
+                entries.append(record)
+
+            result = entries
+        else:
             index = self.rows[row]
             entry = table['entries'][index]
 
@@ -32,24 +56,6 @@ class Result:
                     offset = table['columns'][col]
                     field = entry[offset]
                     record.append(field)
-        else:
-            entries = []
-            for index in row:
-                entry = table['entries'][index]
-
-                if type(column) != list:
-                    offset = table['columns'][column]
-                    record = entry[offset] # field
-                else:
-                    record = []
-                    for col in column:
-                        offset = table['columns'][col]
-                        field = entry[offset]
-                        record.append(field)
-
-                entries.append(record)
-
-            result = entries
         
         return result
 
