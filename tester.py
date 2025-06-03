@@ -165,5 +165,8 @@
 # # x.write("Hello\nHi\n")
 # # print(z.read(3))
 
-a = {"x": 1, int: 3}
-print(a[int])
+class Null:
+    def __len__(self):
+        return 0
+NULL = Null()
+print(NULL or "Yes")

@@ -2,11 +2,17 @@ from pool import Pool, Task, Input
 import threading
 
 
-class Null: ...
+class Null:
+    def __len__(self):
+        return 0
+NULL = Null()
 
 class Any:
     def __init__(self, values: list):
         self.values = values
+
+    def __len__(self):
+        return 1
 
 class Result:
     def __init__(self, rows=[], tables={}):
@@ -15,15 +21,18 @@ class Result:
         self.primarytable = self.tables.keys()[0]
         self.count = len(self.rows)
 
-    def get(self, row: list | Any, column: list | set | Any, table=None):
-        if table == None:
-            table = self.tables[self.primarytable]
+    def __len__(self):
+        return self.count
+
+    def get(self, row: list | Any = None, column: list | set | Any = NULL, table = None):
+        table = table or self.tables[self.primarytable]
+        row = row or range(0, self.count)
+        column = column or set(table['columns'].keys())
 
         if type(row) == list:
             entries = []
             for index in row:
                 entry = table['entries'][index]
-
                 if type(column) == list:
                     record = []
                     for col in column:
@@ -67,7 +76,7 @@ class Database:
         self.lock = threading.Lock()
 
         self.tables = {}
-        self.NULL = Null()
+        self.NULL = NULL
         self.ANY = Any
 
     def _buildindex(self, name, rows=Result(), columns=[]):
