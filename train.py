@@ -218,7 +218,7 @@ class Database:
 
                     table['entries'][index][offset] = value
 
-            self._buildindex(name, rows, columns)
+            self._buildindex(name, Result(rows, self), columns)
 
     def insert(self, name, entries):
         with self.lock:
