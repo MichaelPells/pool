@@ -165,8 +165,19 @@
 # # x.write("Hello\nHi\n")
 # # print(z.read(3))
 
-class Null:
-    def __len__(self):
-        return 0
-NULL = Null()
-print(NULL or "Yes")
+# class Null:
+#     def __len__(self):
+#         return 0
+# NULL = Null()
+# print(NULL or "Yes")
+
+from train import Database, Result
+
+database =  Database()
+columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
+entries = [x[:-1].split(",") for x in open("SampleData1.csv").read().splitlines()]
+database.create("Table1", columns=columns, entries=entries)
+
+result = database.view("Table1", Result([1,2], database))
+
+print(result)

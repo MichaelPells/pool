@@ -15,23 +15,25 @@ class Any:
         return 1
 
 class Result:
-    def __init__(self, rows=[], tables={}):
+    def __init__(self, rows=[], database=None):
         self.rows = list(rows)
-        self.tables = tables
-        self.primarytable = self.tables.keys()[0]
+        self.database = database
+
         self.count = len(self.rows)
 
     def __len__(self):
         return self.count
 
     def get(self, row: list | Any = None, column: list | set | Any = NULL, table = None):
-        table = table or self.tables[self.primarytable]
+        table = table or self.database.primarytable
+        table = self.database.tables[table]
         row = row or range(0, self.count)
         column = column or set(table['columns'].keys())
 
-        if type(row) == list:
+        if type(row) == list or range:
             entries = []
-            for index in row:
+            for i in row:
+                index = self.rows[i]
                 entry = table['entries'][index]
                 if type(column) == list:
                     record = []
@@ -76,6 +78,7 @@ class Database:
         self.lock = threading.Lock()
 
         self.tables = {}
+        self.primarytable = None
         self.NULL = NULL
         self.ANY = Any
 
@@ -88,7 +91,7 @@ class Database:
         for column in columns:
             indexes[column] = {}
 
-        rows = rows.rows or Result(table['entries'].keys()).rows
+        rows = rows.rows or Result(table['entries'].keys(), self).rows
 
         for index in rows:
             for column, offset in columns.items():
@@ -139,22 +142,22 @@ class Database:
             results = self._selector(name, operands)
             operation = set(results[0]).intersection(*results[1:])
 
-            return Result(operation)
+            return Result(operation, self)
     
     def OR(self, name, *operands):
         with self.lock:
             results = self._selector(name, operands)
             operation = set(results[0]).union(*results[1:])
 
-            return Result(operation)
+            return Result(operation, self)
     
     def NOT(self, name, operand):
         with self.lock:
             results = self._selector(name, [operand])
-            superset = range(self.tables[name]['entries'].keys())
+            superset = self.tables[name]['entries'].keys()
             operation = set(superset).difference(results[0])
 
-            return Result(operation)
+            return Result(operation, self)
 
     def create(self, name, columns=[], entries=[], primarykey=None):
         with self.lock:
@@ -172,6 +175,9 @@ class Database:
                 'primarykey': primarykey
             }
 
+            if not self.primarytable:
+                self.primarytable = name
+
             self._buildindex(name)
 
     def read(self, name, rows=Result()):
@@ -182,7 +188,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys()).rows
+            rows = rows.rows or Result(table['entries'].keys(), self).rows
 
             result = []
 
@@ -195,7 +201,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys()).rows
+            rows = rows.rows or Result(table['entries'].keys(), self).rows
     
             columns = {}
 
@@ -235,7 +241,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys()).rows
+            rows = rows.rows or Result(table['entries'].keys(), self).rows
 
             for index in rows:
                 for column, offset in table['columns']:
@@ -433,44 +439,44 @@ class Instance:
         return self.data.__getattribute__(key)
 
 
-import time
+# import time
 
-def app(network: Network):
-    def sleeper():
-        time.sleep(2)
-    network.newnode(sleeper, "sleeper")
+# def app(network: Network):
+#     def sleeper():
+#         time.sleep(2)
+#     network.newnode(sleeper, "sleeper")
 
-    def main(instance: Instance):
-        for i in range(5):
-            print(i)
+#     def main(instance: Instance):
+#         for i in range(5):
+#             print(i)
 
-        def blocker():
-            time.sleep(4)
-            print("Helloooooooo")
-            return Input(("Looper Finished",))
+#         def blocker():
+#             time.sleep(4)
+#             print("Helloooooooo")
+#             return Input(("Looper Finished",))
 
-        def post_looper_result(result):
-            print(f"Result: {result}")
-            network.stop() # Just for safety
+#         def post_looper_result(result):
+#             print(f"Result: {result}")
+#             network.stop() # Just for safety
 
-        def post_sleeper_result():
-            print(f"Result2")
+#         def post_sleeper_result():
+#             print(f"Result2")
 
-        instance.addstage(post_looper_result, "after-looper")
-        instance.node(blocker, "after-looper")
-        instance.nodeon("sleeper", {"text": "Hello"}, instance.addstage(post_sleeper_result))
-        # instance.node(blocker, instance.addstage(post_looper_result))
-        # instance.node(blocker, [post_looper_result])
+#         instance.addstage(post_looper_result, "after-looper")
+#         instance.node(blocker, "after-looper")
+#         instance.nodeon("sleeper", {"text": "Hello"}, instance.addstage(post_sleeper_result))
+#         # instance.node(blocker, instance.addstage(post_looper_result))
+#         # instance.node(blocker, [post_looper_result])
 
-        i += 5
-        print(i)
+#         i += 5
+#         print(i)
 
-    def complete(instance: Instance):
-        print("completed")
+#     def complete(instance: Instance):
+#         print("completed")
 
-    network.adddefaultstages([main, complete])
+#     network.adddefaultstages([main, complete])
 
-project = Network(app)
-project.start()
+# project = Network(app)
+# project.start()
 
-project.do()
+# project.do()
