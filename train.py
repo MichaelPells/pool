@@ -91,7 +91,7 @@ class Database:
         for column in columns:
             indexes[column] = {}
 
-        rows = rows.rows or Result(table['entries'].keys(), self).rows
+        rows = rows.rows or table['entries'].keys()
 
         for index in rows:
             for column, offset in columns.items():
@@ -188,7 +188,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys(), self).rows
+            rows = rows.rows or table['entries'].keys()
 
             result = []
 
@@ -201,7 +201,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys(), self).rows
+            rows = rows.rows or table['entries'].keys()
     
             columns = {}
 
@@ -241,7 +241,7 @@ class Database:
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or Result(table['entries'].keys(), self).rows
+            rows = rows.rows or table['entries'].keys()
 
             for index in rows:
                 for column, offset in table['columns']:
