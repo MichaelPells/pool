@@ -171,14 +171,13 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from train import Database, Result
+from train import Database
 
 database =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
 entries = [x[:-1].split(",") for x in open("SampleData1.csv").read().splitlines()]
 database.create("Table1", columns=columns, entries=entries)
 
-database.update("Table1", database.AND("Table1", {"id": "100"}), {"firstname": "Hello"})
-result = database.view("Table1", Result([1,2], database))
+result = database.AND("Table1", {"id": "662"})
 
-print(result)
+print(result.get(row=0, column="firstname"))

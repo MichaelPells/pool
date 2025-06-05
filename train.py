@@ -27,10 +27,10 @@ class Result:
     def get(self, row: list | Any = None, column: list | set | Any = NULL, table = None):
         table = table or self.database.primarytable
         table = self.database.tables[table]
-        row = row or range(0, self.count)
+        row = row if row != None else range(0, self.count)
         column = column or set(table['columns'].keys())
 
-        if type(row) == list or range:
+        if type(row) == list or type(row) == range:
             entries = []
             for i in row:
                 index = self.rows[i]
