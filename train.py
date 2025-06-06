@@ -61,15 +61,21 @@ class Result:
             index = self.rows[row]
             entry = table['entries'][index]
 
-            if type(column) != list:
-                offset = table['columns'][column]
-                result = entry[offset] # field
-            else:
+            if type(column) == list:
                 result = [] # record
                 for col in column:
                     offset = table['columns'][col]
                     field = entry[offset]
-                    record.append(field)
+                    result.append(field)
+            elif type(column) == set:
+                result = {} # record
+                for col in column:
+                    offset = table['columns'][col]
+                    field = entry[offset]
+                    result[col] = field
+            else:
+                offset = table['columns'][column]
+                result = entry[offset] # field
         
         return result
 
@@ -178,9 +184,18 @@ class Database:
 
             self._buildindex(name)
 
-    def read(self, name, rows=Result()):
+    def read(self, name, rows=None):
         with self.lock:
-            ...
+            table = self.tables[name]
+
+            if rows == None:
+                rows = table['entries'].keys()
+            else:
+                rows = self._selector(name, rows)
+
+            result = Result(rows, self)
+
+            return result
 
     def view(self, name, rows=None):
         with self.lock:

@@ -178,7 +178,7 @@ columns = ["id", "email", "firstname", "middlename", "surname", "gender", "count
 entries = [x[:-1].split(",") for x in open("SampleData1.csv").read().splitlines()]
 database.create("Table1", columns=columns, entries=entries)
 
-database.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
-result = database.view("Table1", {"surname": "Akinpelumi"})
+# database.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
+result = database.read("Table1", {"surname": "Akinpelumi"})
 
-print(result)
+print(result.get())
