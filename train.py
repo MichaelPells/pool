@@ -95,6 +95,9 @@ class Database:
         self.primarytable = None
         self.NULL = NULL
         self.ANY = Any
+        self.AND = AND
+        self.OR = OR
+        self.NOT = NOT
 
     def _buildindex(self, name, rows=Result(), columns=[]):
         table = self.tables[name]
@@ -141,13 +144,20 @@ class Database:
             return query
         
         if type(query) == dict:
-            ...
+            column, value = list(query.items())[0]
+            return self._select(name=name, column=column, value=value)
         
-        elif type(query) == Gate:
+        elif isinstance(query, Gate):
             results = []
 
             for operand in query.operands:
-                results.append(self._selector(name, operand))
+                if type(operand) == dict:
+                    queries = operand
+
+                    for column, value in queries.items():
+                        results.append(self._select(name=name, column=column, value=value))
+                else:
+                    results.append(self._selector(name, operand))
 
             if type(query) == AND:
                 return set(results[0]).intersection(*results[1:])
@@ -156,41 +166,6 @@ class Database:
             elif type(query) == NOT:
                 superset = self.tables[name]['entries'].keys()
                 return set(superset).difference(results[0])
-
-
-        for operand in operands:
-            if type(operand) == dict:
-                queries = operand
-
-                for column, value in queries.items():
-                    results.append(self._select(name=name, column=column, value=value))
-
-            elif type(operand) == Result:
-                results.append(operand.rows)
-
-        return results
-    
-    def AND(self, name, *operands):
-        with self.lock:
-            results = self._selector(name, operands)
-            operation = set(results[0]).intersection(*results[1:])
-
-            return Result(operation, self)
-    
-    def OR(self, name, *operands):
-        with self.lock:
-            results = self._selector(name, operands)
-            operation = set(results[0]).union(*results[1:])
-
-            return Result(operation, self)
-    
-    def NOT(self, name, operand):
-        with self.lock:
-            results = self._selector(name, [operand])
-            superset = self.tables[name]['entries'].keys()
-            operation = set(superset).difference(results[0])
-
-            return Result(operation, self)
 
     def create(self, name, columns=[], entries=[], primarykey=None):
         with self.lock:
@@ -219,9 +194,9 @@ class Database:
 
     def view(self, name, rows=[]):
         with self.lock:
-            rows = self._selector(name, rows) or table['entries'].keys()
-
             table = self.tables[name]
+
+            rows = self._selector(name, rows) or table['entries'].keys()
 
             result = []
 
