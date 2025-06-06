@@ -3,29 +3,18 @@ import threading
 
 
 class Null:
-    def __len__(self):
-        return 0
+    def __len__(self): return 0
 NULL = Null()
 
 class Any:
     def __init__(self, values: list):
         self.values = values
 
-    def __len__(self):
-        return 1
+    def __len__(self): return 1
 
 class Gate:
     def __init__(self, *operands):
         self.operands = operands
-
-class AND(Gate):
-    ...
-
-class OR(Gate):
-    ...
-
-class NOT(Gate):
-    ...
 
 
 class Result:
@@ -95,9 +84,10 @@ class Database:
         self.primarytable = None
         self.NULL = NULL
         self.ANY = Any
-        self.AND = AND
-        self.OR = OR
-        self.NOT = NOT
+    
+    class AND(Gate): ...
+    class OR(Gate): ...
+    class NOT(Gate): ...
 
     def _buildindex(self, name, rows=Result(), columns=[]):
         table = self.tables[name]
@@ -147,7 +137,7 @@ class Database:
             column, value = list(query.items())[0]
             return self._select(name=name, column=column, value=value)
         
-        elif isinstance(query, Gate):
+        if isinstance(query, Gate):
             results = []
 
             for operand in query.operands:
@@ -192,11 +182,14 @@ class Database:
         with self.lock:
             ...
 
-    def view(self, name, rows=[]):
+    def view(self, name, rows=None):
         with self.lock:
             table = self.tables[name]
 
-            rows = self._selector(name, rows) or table['entries'].keys()
+            if rows == None:
+                rows = table['entries'].keys()
+            else:
+                rows = self._selector(name, rows)
 
             result = []
 

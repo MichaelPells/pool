@@ -178,6 +178,6 @@ columns = ["id", "email", "firstname", "middlename", "surname", "gender", "count
 entries = [x[:-1].split(",") for x in open("SampleData1.csv").read().splitlines()]
 database.create("Table1", columns=columns, entries=entries)
 
-result = database.view("Table1", database.AND({"firstname": "Soledayo", "surname": "Akinpelumi"}))
+result = database.view("Table1", {"surname": "Akinpelumi"})
 
 print(result)
