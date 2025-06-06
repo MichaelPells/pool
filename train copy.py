@@ -14,20 +14,6 @@ class Any:
     def __len__(self):
         return 1
 
-class Gate:
-    def __init__(self, *operands):
-        self.operands = operands
-
-class AND(Gate):
-    ...
-
-class OR(Gate):
-    ...
-
-class NOT(Gate):
-    ...
-
-
 class Result:
     def __init__(self, rows=[], database=None):
         self.rows = list(rows)
@@ -136,27 +122,8 @@ class Database:
     
         return list(set(results[0]).union(*results[1:]))
 
-    def _selector(self, name, query):
-        if type(query) == list:
-            return query
-        
-        if type(query) == dict:
-            ...
-        
-        elif type(query) == Gate:
-            results = []
-
-            for operand in query.operands:
-                results.append(self._selector(name, operand))
-
-            if type(query) == AND:
-                return set(results[0]).intersection(*results[1:])
-            elif type(query) == OR:
-                return set(results[0]).union(*results[1:])
-            elif type(query) == NOT:
-                superset = self.tables[name]['entries'].keys()
-                return set(superset).difference(results[0])
-
+    def _selector(self, name, operands):
+        results = []
 
         for operand in operands:
             if type(operand) == dict:
@@ -217,11 +184,11 @@ class Database:
         with self.lock:
             ...
 
-    def view(self, name, rows=[]):
+    def view(self, name, rows=Result()):
         with self.lock:
-            rows = self._selector(name, rows) or table['entries'].keys()
-
             table = self.tables[name]
+
+            rows = rows.rows or table['entries'].keys()
 
             result = []
 
