@@ -171,7 +171,7 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from train import Database
+from database import Database
 
 database =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
