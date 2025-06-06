@@ -149,11 +149,11 @@ class Database:
                 else:
                     results.append(self._selector(name, operand))
 
-            if type(query) == AND:
+            if type(query) == self.AND:
                 return set(results[0]).intersection(*results[1:])
-            elif type(query) == OR:
+            elif type(query) == self.OR:
                 return set(results[0]).union(*results[1:])
-            elif type(query) == NOT:
+            elif type(query) == self.NOT:
                 superset = self.tables[name]['entries'].keys()
                 return set(superset).difference(results[0])
 
@@ -198,11 +198,14 @@ class Database:
 
             return result
 
-    def update(self, name, rows=Result(), record={}):
+    def update(self, name, rows=None, record={}):
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or table['entries'].keys()
+            if rows == None:
+                rows = table['entries'].keys()
+            else:
+                rows = self._selector(name, rows)
     
             columns = {}
 
@@ -238,14 +241,17 @@ class Database:
         with self.lock:
             del self.tables[name]
 
-    def remove(self, name, rows=Result()):
+    def remove(self, name, rows=None):
         with self.lock:
             table = self.tables[name]
 
-            rows = rows.rows or table['entries'].keys()
+            if rows == None:
+                rows = table['entries'].keys()
+            else:
+                rows = self._selector(name, rows)
 
             for index in rows:
-                for column, offset in table['columns']:
+                for column, offset in table['columns'].items():
                     field = table['entries'][index][offset]
 
                     del table['indexes'][column][field][index]
