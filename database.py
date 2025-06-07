@@ -80,6 +80,7 @@ class Result:
     def sort(self, column, order):
         return self
 
+
 class Database:
     def __init__(self):
         self.lock = threading.Lock()
@@ -114,11 +115,16 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def _select(self, name, column=None, value=None): # What should really be the defaults here?
-        if type(value) == self.ANY:
-            values = value.values
+    def resolver(self, variable):
+        if type(variable) == self.ANY:
+            values = variable.values
         else:
-            values = [value]
+            values = [variable]
+
+        return values
+
+    def _select(self, name, column=None, value=None): # What should really be the defaults here?
+        values = self.resolver(value)
 
         column = self.tables[name]['indexes'][column]
         results = []
