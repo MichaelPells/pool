@@ -1,14 +1,31 @@
 import threading
 
-class Null:
-    def __len__(self): return 0
-NULL = Null()
 
-class Any:
-    def __init__(self, values: list):
-        self.values = values
+class Variable:
+    class Var: ...
 
-    def __len__(self): return 1
+    class Null(Var):
+        def __len__(self): return 0
+
+        def process(self, name, database):
+            return [self]
+    NULL = Null()
+
+    class Any(Var):
+        def __init__(self, values: list):
+            self.values = values
+
+        def __len__(self): return 1
+
+        def process(self, name, database):
+            return self.values
+        
+    class Max(Var):
+        def __init__(self, column):
+            self.column = column
+
+        def process(self, name, database):
+            return [max(database.tables[name]['indexes'][self.column])]
 
 class Operator:
     class Gate:
@@ -39,7 +56,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Any = None, column: list | set | Any = NULL, table = None):
+    def get(self, row: list | Variable.Any = None, column: list | set | Variable.Any = Variable.NULL, table = None):
         table = table or self.database.primarytable
         table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
@@ -101,8 +118,6 @@ class Database:
 
         self.tables = {}
         self.primarytable = None
-        self.NULL = NULL
-        self.ANY = Any
 
     def _buildindex(self, name, rows=Result(), columns=[]):
         table = self.tables[name]
@@ -111,7 +126,8 @@ class Database:
         indexes = table['indexes']
 
         for column in columns:
-            indexes[column] = {}
+            if column not in indexes:
+                indexes[column] = {}
 
         rows = rows.rows or table['entries'].keys()
 
@@ -125,16 +141,16 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def _resolver(self, variable):
-        if type(variable) == self.ANY:
-            values = variable.values
+    def _resolver(self, name, variable):
+        if isinstance(variable, Variable.Var):
+            values = variable.process(name, self)
         else:
             values = [variable]
 
         return values
 
     def _select(self, name, column=None, value=None): # What should really be the defaults here?
-        values = self._resolver(value)
+        values = self._resolver(name, value)
 
         column = self.tables[name]['indexes'][column]
         results = []
