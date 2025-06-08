@@ -4,28 +4,47 @@ import threading
 class Variable:
     class Var: ...
 
-    class Null(Var):
+    class null(Var):
         def __len__(self): return 0
 
-        def process(self, name, database):
-            return [self]
-    NULL = Null()
+        def index(self, name, database):
+            ...
 
-    class Any(Var):
+        def process(self, name, database):
+            return self
+        
+        def compute(self, name, database):
+            ...
+
+    NULL = null()
+
+    class any(Var):
         def __init__(self, values: list):
             self.values = values
 
         def __len__(self): return 1
 
+        def index(self, name, database):
+            ...
+
         def process(self, name, database):
             return self.values
         
-    class Max(Var):
+        def compute(self, name, database):
+            ...
+
+    class max(Var):
         def __init__(self, column):
             self.column = column
 
+        def index(self, name, database):
+            ...
+
         def process(self, name, database):
-            return [max(database.tables[name]['indexes'][self.column])]
+            return max(database.tables[name]['indexes'][self.column])
+
+        def compute(self, name, database):
+            ...
 
 class Operator:
     class Gate:
@@ -56,7 +75,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Variable.Any = None, column: list | set | Variable.Any = Variable.NULL, table = None):
+    def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.NULL, table = None):
         table = table or self.database.primarytable
         table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
@@ -141,28 +160,27 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def _resolver(self, name, variable):
-        if isinstance(variable, Variable.Var):
-            values = variable.process(name, self)
-        else:
-            values = [variable]
-
-        return values
-
     def _select(self, name, column=None, value=None): # What should really be the defaults here?
-        values = self._resolver(name, value)
+        Column = self.tables[name]['indexes'][column]
 
-        column = self.tables[name]['indexes'][column]
-        results = []
-
-        for value in values:
-            if value not in column:
-                results.append([])
+        if not isinstance(value, Variable.Var):
+            if value not in Column:
+                return []
             else:
-                result = column[value].keys()
-                results.append(result)
-    
-        return list(set(results[0]).union(*results[1:]))
+                return list(Column[value].keys())
+        else:
+            value = value.process(name, self)
+
+            if type(value) != list:
+                return self._select(name, column, value)
+            else:
+                values = value
+                results = []
+
+                for value in values:
+                    results.append(self._select(name, column, value))
+        
+                return list(set(results[0]).union(*results[1:]))
 
     def _selector(self, name, query):
         if type(query) == list:
