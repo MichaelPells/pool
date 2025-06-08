@@ -171,14 +171,15 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from database import Database
+from database import Database, Operator as Op
 
-database =  Database()
+db =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
-entries = [x[:-1].split(",") for x in open("SampleData1.csv").read().splitlines()]
-database.create("Table1", columns=columns, entries=entries)
+entries = [[y.strip() for y in x[:-1].split(",")] for x in open("SampleData1.csv").read().splitlines()]
+db.create("Table1", columns=columns, entries=entries)
 
-# database.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
-result = database.read("Table1", {"surname": "Akinpelumi"})
+# db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
+result = db.read("Table1", Op.NOT({"country": db.ANY(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}))
 
-print(result.get())
+for r in result.get():
+    print(r)

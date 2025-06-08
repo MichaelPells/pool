@@ -10,9 +10,23 @@ class Any:
 
     def __len__(self): return 1
 
-class Gate:
-    def __init__(self, *operands):
-        self.operands = operands
+class Operator:
+    class Gate:
+        def __init__(self, *operands):
+            self.operands = operands
+
+    class AND(Gate):
+        def process(self, results, name, database):
+            return set(results[0]).intersection(*results[1:])
+
+    class OR(Gate):
+        def process(self, results, name, database):
+            return set(results[0]).union(*results[1:])
+
+    class NOT(Gate):
+        def process(self, results, name, database):
+            superset = database.tables[name]['entries'].keys()
+            return set(superset).difference(results[0])
 
 
 class Result:
@@ -89,10 +103,6 @@ class Database:
         self.primarytable = None
         self.NULL = NULL
         self.ANY = Any
-    
-    class AND(Gate): ...
-    class OR(Gate): ...
-    class NOT(Gate): ...
 
     def _buildindex(self, name, rows=Result(), columns=[]):
         table = self.tables[name]
@@ -115,7 +125,7 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def resolver(self, variable):
+    def _resolver(self, variable):
         if type(variable) == self.ANY:
             values = variable.values
         else:
@@ -124,7 +134,7 @@ class Database:
         return values
 
     def _select(self, name, column=None, value=None): # What should really be the defaults here?
-        values = self.resolver(value)
+        values = self._resolver(value)
 
         column = self.tables[name]['indexes'][column]
         results = []
@@ -132,7 +142,6 @@ class Database:
         for value in values:
             if value not in column:
                 results.append([])
-
             else:
                 result = column[value].keys()
                 results.append(result)
@@ -147,7 +156,7 @@ class Database:
             column, value = list(query.items())[0]
             return self._select(name=name, column=column, value=value)
         
-        if isinstance(query, Gate):
+        if isinstance(query, Operator.Gate):
             results = []
 
             for operand in query.operands:
@@ -159,13 +168,7 @@ class Database:
                 else:
                     results.append(self._selector(name, operand))
 
-            if type(query) == self.AND:
-                return set(results[0]).intersection(*results[1:])
-            elif type(query) == self.OR:
-                return set(results[0]).union(*results[1:])
-            elif type(query) == self.NOT:
-                superset = self.tables[name]['entries'].keys()
-                return set(superset).difference(results[0])
+            return query.process(results, name, self)
 
     def create(self, name, columns=[], entries=[], primarykey=None):
         with self.lock:
