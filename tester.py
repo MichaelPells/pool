@@ -181,8 +181,8 @@ entries = [[int(y.strip()) if y.isdigit() else y.strip()
 db.create("Table1", columns=columns, entries=entries)
 
 # db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
-# db.update("Table1", Op.NOT({"country": Var.Any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
-result = db.read("Table1", {"id": Var.any([Var.max("id"), 500, 100, Var.any([200, 201])])})
+db.update("Table1", Op.NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
+result = db.read("Table1", {"country": Var.NULL})
 
 for r in result.get():
     print(r)

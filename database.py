@@ -46,6 +46,19 @@ class Variable:
         def compute(self, name, database):
             ...
 
+    class min(Var):
+        def __init__(self, column):
+            self.column = column
+
+        def index(self, name, database):
+            ...
+
+        def process(self, name, database):
+            return min(database.tables[name]['indexes'][self.column])
+
+        def compute(self, name, database):
+            ...
+
 class Operator:
     class Gate:
         def __init__(self, *operands):
