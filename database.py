@@ -4,6 +4,21 @@ import threading
 class Variable:
     class Var: ...
 
+    class escape(Var):
+        def __init__(self, variable):
+            self.variable = variable
+
+        def __len__(self): return 1
+
+        def index(self, name, database):
+            ... # index variable
+
+        def process(self, name, database):
+            return self.variable
+        
+        def compute(self, name, database):
+            ... # return variable
+
     class null(Var):
         def __len__(self): return 0
 
@@ -11,7 +26,7 @@ class Variable:
             ...
 
         def process(self, name, database):
-            return self
+            return Variable.escape(self)
         
         def compute(self, name, database):
             ...
@@ -177,6 +192,13 @@ class Database:
         Column = self.tables[name]['indexes'][column]
 
         if not isinstance(value, Variable.Var):
+            if value not in Column:
+                return []
+            else:
+                return list(Column[value].keys())
+        elif type(value) == Variable.escape:
+            value = value.process(name, self)
+
             if value not in Column:
                 return []
             else:
