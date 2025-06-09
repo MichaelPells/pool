@@ -182,7 +182,7 @@ db.create("Table1", columns=columns, entries=entries)
 
 # db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
 db.update("Table1", Op.NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
-result = db.read("Table1", {"country": Var.any([Var.escape(Var.NULL), "nigeria"])})
+result = db.read("Table1", {"country": Var.any([Var.NULL, "nigeria"])})
 
 for r in result.get():
     print(r)

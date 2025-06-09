@@ -4,7 +4,9 @@ import threading
 class Variable:
     class Var: ...
 
-    class escape(Var):
+    class Const: ...
+
+    class escape(Var, Const):
         def __init__(self, variable):
             self.variable = variable
 
@@ -196,7 +198,7 @@ class Database:
                 return []
             else:
                 return list(Column[value].keys())
-        elif type(value) == Variable.escape:
+        elif isinstance(value, Variable.Const):
             value = value.process(name, self)
 
             if value not in Column:
