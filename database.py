@@ -12,32 +12,32 @@ class Variable:
 
         def __len__(self): return 1
 
-        def index(self, name, database):
+        def index(self, table, database):
             ... # index variable
 
-        def process(self, name, column, database):
+        def process(self, table, column, database):
             value = self.variable
 
-            Column = database.tables[name]['indexes'][column]
+            Column = database.tables[table]['indexes'][column]
         
             if value not in Column:
                     return []
             else:
                 return list(Column[value].keys())
         
-        def compute(self, name, database):
+        def compute(self, table, database):
             ... # return variable
 
     class null(Var):
         def __len__(self): return 0
 
-        def index(self, name, database):
+        def index(self, table, database):
             ...
 
-        def process(self, name, column, database):
-            return database._select(name, column, Variable.escape(self))
+        def process(self, table, column, database):
+            return database._select(table, column, Variable.escape(self))
         
-        def compute(self, name, database):
+        def compute(self, table, database):
             ...
 
     NULL = null()
@@ -48,63 +48,63 @@ class Variable:
 
         def __len__(self): return 1
 
-        def index(self, name, database):
+        def index(self, table, database):
             ...
 
-        def process(self, name, column, database):
+        def process(self, table, column, database):
             results = []
 
             for value in self.values:
-                results.append(database._select(name, column, value))
+                results.append(database._select(table, column, value))
     
             return list(set(results[0]).union(*results[1:]))
         
-        def compute(self, name, database):
+        def compute(self, table, database):
             ...
 
     class values(Var):
-        def __init__(self, name=None, column=None): # Find better default for column!
-            self.table = name
+        def __init__(self, column, table=None): # Find better default for column!
             self.column = column
+            self.table = table
 
         def __len__(self): return 1
 
-        def index(self, name, database):
+        def index(self, table, database):
             ...
 
-        def process(self, name, column, database):
-            self.table = self.table or name
-            values = list(database.tables[name]['indexes'][self.column].keys())
+        def process(self, table, column, database):
+            self.table = self.table or table
+            values = list(database.tables[self.table]['indexes'][self.column].keys())
     
-            return database._select(name, column, Variable.any(values))
+            return database._select(table, column, Variable.any(values))
         
-        def compute(self, name, database):
+        def compute(self, table, database):
             ...
 
     class max(Var):
         def __init__(self, column):
             self.column = column
 
-        def index(self, name, database):
+        def index(self, table, database):
             ...
 
-        def process(self, name, column, database):
-            return database._select(name, column, max(database.tables[name]['indexes'][self.column]))
+        def process(self, table, column, database):
+            return database._select(table, column, max(database.tables[table]['indexes'][self.column]))
 
-        def compute(self, name, database):
+        def compute(self, table, database):
             ...
 
     class min(Var):
         def __init__(self, column):
             self.column = column
 
-        def index(self, name, database):
+        def index(self, table, database):
             ...
 
-        def process(self, name, column, database):
-            return database._select(name, column, min(database.tables[name]['indexes'][self.column]))
+        def process(self, table, column, database):
+            return database._select(table, column, min(database.tables[table]['indexes'][self.column]))
 
-        def compute(self, name, database):
+        def compute(self, table, database):
             ...
 
 class Operator:
@@ -113,16 +113,16 @@ class Operator:
             self.operands = operands
 
     class AND(Gate):
-        def process(self, results, name, database):
+        def process(self, results, table, database):
             return set(results[0]).intersection(*results[1:])
 
     class OR(Gate):
-        def process(self, results, name, database):
+        def process(self, results, table, database):
             return set(results[0]).union(*results[1:])
 
     class NOT(Gate):
-        def process(self, results, name, database):
-            superset = database.tables[name]['entries'].keys()
+        def process(self, results, table, database):
+            superset = database.tables[table]['entries'].keys()
             return set(superset).difference(results[0])
 
 
@@ -138,29 +138,29 @@ class Result:
 
     def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.NULL, table = None):
         table = table or self.database.primarytable
-        table = self.database.tables[table]
+        Table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
-        column = column or set(table['columns'].keys())
+        column = column or set(Table['columns'].keys())
 
         if type(row) == list or type(row) == range:
             entries = []
             for i in row:
                 index = self.rows[i]
-                entry = table['entries'][index]
+                entry = Table['entries'][index]
                 if type(column) == list:
                     record = []
                     for col in column:
-                        offset = table['columns'][col]
+                        offset = Table['columns'][col]
                         field = entry[offset]
                         record.append(field)
                 elif type(column) == set:
                     record = {}
                     for col in column:
-                        offset = table['columns'][col]
+                        offset = Table['columns'][col]
                         field = entry[offset]
                         record[col] = field
                 else:
-                    offset = table['columns'][column]
+                    offset = Table['columns'][column]
                     record = entry[offset] # field
 
                 entries.append(record)
@@ -168,22 +168,22 @@ class Result:
             result = entries
         else:
             index = self.rows[row]
-            entry = table['entries'][index]
+            entry = Table['entries'][index]
 
             if type(column) == list:
                 result = [] # record
                 for col in column:
-                    offset = table['columns'][col]
+                    offset = Table['columns'][col]
                     field = entry[offset]
                     result.append(field)
             elif type(column) == set:
                 result = {} # record
                 for col in column:
-                    offset = table['columns'][col]
+                    offset = Table['columns'][col]
                     field = entry[offset]
                     result[col] = field
             else:
-                offset = table['columns'][column]
+                offset = Table['columns'][column]
                 result = entry[offset] # field
         
         return result
@@ -199,17 +199,17 @@ class Database:
         self.tables = {}
         self.primarytable = None
 
-    def _buildindex(self, name, rows=Result(), columns=[]):
-        table = self.tables[name]
-        columns = {column: table['columns'][column] for column in columns} or table['columns']
-        entries = table['entries']
-        indexes = table['indexes']
+    def _buildindex(self, table, rows=Result(), columns=[]):
+        Table = self.tables[table]
+        columns = {column: Table['columns'][column] for column in columns} or Table['columns']
+        entries = Table['entries']
+        indexes = Table['indexes']
 
         for column in columns:
             if column not in indexes:
                 indexes[column] = {}
 
-        rows = rows.rows or table['entries'].keys()
+        rows = rows.rows or Table['entries'].keys()
 
         for index in rows:
             for column, offset in columns.items():
@@ -221,8 +221,8 @@ class Database:
 
                 indexes[column][field][index] = index
 
-    def _select(self, name, column=None, value=None): # What should really be the defaults here?
-        Column = self.tables[name]['indexes'][column]
+    def _select(self, table, column=None, value=None): # What should really be the defaults here?
+        Column = self.tables[table]['indexes'][column]
 
         if not isinstance(value, Variable.Var):
             if value not in Column:
@@ -230,15 +230,15 @@ class Database:
             else:
                 return list(Column[value].keys())
         else:
-            return value.process(name, column, self)
+            return value.process(table, column, self)
 
-    def _selector(self, name, query):
+    def _selector(self, table, query):
         if type(query) == list:
             return query
         
         if type(query) == dict:
             column, value = list(query.items())[0]
-            return self._select(name=name, column=column, value=value)
+            return self._select(table=table, column=column, value=value)
         
         if isinstance(query, Operator.Gate):
             results = []
@@ -248,19 +248,19 @@ class Database:
                     queries = operand
 
                     for column, value in queries.items():
-                        results.append(self._select(name=name, column=column, value=value))
+                        results.append(self._select(table=table, column=column, value=value))
                 else:
-                    results.append(self._selector(name, operand))
+                    results.append(self._selector(table, operand))
 
-            return query.process(results, name, self)
+            return query.process(results, table, self)
 
-    def create(self, name, columns=[], entries=[], primarykey=None):
+    def create(self, table, columns=[], entries=[], primarykey=None):
         with self.lock:
             columns = {column: offset for offset, column in enumerate(columns)}
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
             count = len(entries)
 
-            self.tables[name] = {
+            self.tables[table] = {
                 'columns': columns,
                 'entries': entries,
                 'references': {},
@@ -271,99 +271,99 @@ class Database:
             }
 
             if not self.primarytable:
-                self.primarytable = name
+                self.primarytable = table
 
-            self._buildindex(name)
+            self._buildindex(table)
 
-    def read(self, name, rows=None):
+    def read(self, table, rows=None):
         with self.lock:
-            table = self.tables[name]
+            Table = self.tables[table]
 
             if rows == None:
-                rows = table['entries'].keys()
+                rows = Table['entries'].keys()
             else:
-                rows = self._selector(name, rows)
+                rows = self._selector(table, rows)
 
             result = Result(rows, self)
 
             return result
 
-    def view(self, name, rows=None):
+    def view(self, table, rows=None):
         with self.lock:
-            table = self.tables[name]
+            Table = self.tables[table]
 
             if rows == None:
-                rows = table['entries'].keys()
+                rows = Table['entries'].keys()
             else:
-                rows = self._selector(name, rows)
+                rows = self._selector(table, rows)
 
             result = []
 
             for index in rows:
-                result.append(table['entries'][index])
+                result.append(Table['entries'][index])
 
             return result
 
-    def update(self, name, rows=None, record={}):
+    def update(self, table, rows=None, record={}):
         with self.lock:
-            table = self.tables[name]
+            Table = self.tables[table]
 
             if rows == None:
-                rows = table['entries'].keys()
+                rows = Table['entries'].keys()
             else:
-                rows = self._selector(name, rows)
+                rows = self._selector(table, rows)
     
             columns = {}
 
             for column, value in record.items():
-                offset = table['columns'][column]
+                offset = Table['columns'][column]
                 columns[column] = offset
 
                 for index in rows:
-                    field = table['entries'][index][offset]
+                    field = Table['entries'][index][offset]
 
-                    del table['indexes'][column][field][index]
-                    if not table['indexes'][column][field]:
-                        del table['indexes'][column][field]
+                    del Table['indexes'][column][field][index]
+                    if not Table['indexes'][column][field]:
+                        del Table['indexes'][column][field]
 
-                    table['entries'][index][offset] = value
+                    Table['entries'][index][offset] = value
 
-            self._buildindex(name, Result(rows, self), columns)
+            self._buildindex(table, Result(rows, self), columns)
 
-    def insert(self, name, entries):
+    def insert(self, table, entries):
         with self.lock:
-            table = self.tables[name]
-            start = table['nextindex']
+            Table = self.tables[table]
+            start = Table['nextindex']
             stop = start + len(entries)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
 
-            table['entries'].update(entries)
-            table['count'] += len(entries)
-            table['nextindex'] = stop
+            Table['entries'].update(entries)
+            Table['count'] += len(entries)
+            Table['nextindex'] = stop
 
-            self._buildindex(name, rows=range(start, stop))
+            self._buildindex(table, rows=range(start, stop))
 
-    def delete(self, name):
+    def delete(self, table):
         with self.lock:
-            del self.tables[name]
+            del self.tables[table]
 
-    def remove(self, name, rows=None):
+    def remove(self, table, rows=None):
         with self.lock:
-            table = self.tables[name]
+            Table = self.tables[table]
 
             if rows == None:
-                rows = table['entries'].keys()
+                rows = Table['entries'].keys()
             else:
-                rows = self._selector(name, rows)
+                rows = self._selector(table, rows)
 
             for index in rows:
-                for column, offset in table['columns'].items():
-                    field = table['entries'][index][offset]
+                for column, offset in Table['columns'].items():
+                    field = Table['entries'][index][offset]
 
-                    del table['indexes'][column][field][index]
-                    if not table['indexes'][column][field]:
-                        del table['indexes'][column][field]
+                    del Table['indexes'][column][field][index]
+                    if not Table['indexes'][column][field]:
+                        del Table['indexes'][column][field]
 
-                del table['entries'][index]
+                del Table['entries'][index]
 
-            table['count'] -= len(rows)
+            Table['count'] -= len(rows)

@@ -189,6 +189,6 @@ db.create("Table1", columns=columns, entries=entries)
 # print(result.count)
 
 db.update("Table1", {"id": 200}, record={"phone": "Akinpelumi"})
-result = db.read("Table1", {"surname": Var.values("Table1", "phone")})
+result = db.read("Table1", {"surname": Var.values("phone")})
 print(result.get())
 print(result.count)
