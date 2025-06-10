@@ -15,8 +15,15 @@ class Variable:
         def index(self, name, database):
             ... # index variable
 
-        def process(self, name, database):
-            return self.variable
+        def process(self, name, column, database):
+            value = self.variable
+
+            Column = database.tables[name]['indexes'][column]
+        
+            if value not in Column:
+                    return []
+            else:
+                return list(Column[value].keys())
         
         def compute(self, name, database):
             ... # return variable
@@ -27,8 +34,8 @@ class Variable:
         def index(self, name, database):
             ...
 
-        def process(self, name, database):
-            return Variable.escape(self)
+        def process(self, name, column, database):
+            return database._select(name, column, Variable.escape(self))
         
         def compute(self, name, database):
             ...
@@ -44,8 +51,13 @@ class Variable:
         def index(self, name, database):
             ...
 
-        def process(self, name, database):
-            return self.values
+        def process(self, name, column, database):
+            results = []
+
+            for value in self.values:
+                results.append(database._select(name, column, value))
+    
+            return list(set(results[0]).union(*results[1:]))
         
         def compute(self, name, database):
             ...
@@ -57,8 +69,8 @@ class Variable:
         def index(self, name, database):
             ...
 
-        def process(self, name, database):
-            return max(database.tables[name]['indexes'][self.column])
+        def process(self, name, column, database):
+            return database._select(name, column, max(database.tables[name]['indexes'][self.column]))
 
         def compute(self, name, database):
             ...
@@ -70,8 +82,8 @@ class Variable:
         def index(self, name, database):
             ...
 
-        def process(self, name, database):
-            return min(database.tables[name]['indexes'][self.column])
+        def process(self, name, column, database):
+            return database._select(name, column, min(database.tables[name]['indexes'][self.column]))
 
         def compute(self, name, database):
             ...
@@ -198,26 +210,8 @@ class Database:
                 return []
             else:
                 return list(Column[value].keys())
-        elif isinstance(value, Variable.Const):
-            value = value.process(name, self)
-
-            if value not in Column:
-                return []
-            else:
-                return list(Column[value].keys())
         else:
-            value = value.process(name, self)
-
-            if type(value) != list:
-                return self._select(name, column, value)
-            else:
-                values = value
-                results = []
-
-                for value in values:
-                    results.append(self._select(name, column, value))
-        
-                return list(set(results[0]).union(*results[1:]))
+            return value.process(name, column, self)
 
     def _selector(self, name, query):
         if type(query) == list:
