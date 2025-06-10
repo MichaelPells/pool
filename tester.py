@@ -180,10 +180,15 @@ entries = [[int(y.strip()) if y.isdigit() else y.strip()
             for x in open("SampleData1.csv").read().splitlines()]
 db.create("Table1", columns=columns, entries=entries)
 
-# db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
-db.update("Table1", Op.NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
-result = db.read("Table1", {"country": Var.any([Var.NULL, "nigeria"])})
+# # db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
+# db.update("Table1", Op.NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
+# result = db.read("Table1", {"country": Var.any([Var.NULL, "nigeria"])})
 
-for r in result.get():
-    print(r)
+# for r in result.get():
+#     print(r)
+# print(result.count)
+
+db.update("Table1", {"id": 200}, record={"phone": "Akinpelumi"})
+result = db.read("Table1", {"surname": Var.values("Table1", "phone")})
+print(result.get())
 print(result.count)

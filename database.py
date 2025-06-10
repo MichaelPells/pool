@@ -62,6 +62,25 @@ class Variable:
         def compute(self, name, database):
             ...
 
+    class values(Var):
+        def __init__(self, name=None, column=None): # Find better default for column!
+            self.table = name
+            self.column = column
+
+        def __len__(self): return 1
+
+        def index(self, name, database):
+            ...
+
+        def process(self, name, column, database):
+            self.table = self.table or name
+            values = list(database.tables[name]['indexes'][self.column].keys())
+    
+            return database._select(name, column, Variable.any(values))
+        
+        def compute(self, name, database):
+            ...
+
     class max(Var):
         def __init__(self, column):
             self.column = column
