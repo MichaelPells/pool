@@ -115,6 +115,7 @@ class Variable:
             ...
 
         def process(self, table, column, database):
+            print(sum(database.tables[table]['indexes'][self.column]))
             return database._select(table, column, sum(database.tables[table]['indexes'][self.column]))
 
         def compute(self, table, database):

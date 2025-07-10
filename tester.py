@@ -192,3 +192,8 @@ db.update("Table1", {"id": 200}, record={"phone": "Akinpelumi"})
 result = db.read("Table1", {"surname": Var.values("phone")})
 print(result.get())
 print(result.count)
+
+db.update("Table1", {"id": 200}, record={"phone": 218496})
+result = db.read("Table1", {"phone": Var.sum("id")})
+print(result.get())
+print(result.count)
