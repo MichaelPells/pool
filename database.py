@@ -107,6 +107,19 @@ class Variable:
         def compute(self, table, database):
             ...
 
+    class sum(Var):
+        def __init__(self, column):
+            self.column = column
+
+        def index(self, table, database):
+            ...
+
+        def process(self, table, column, database):
+            return database._select(table, column, sum(database.tables[table]['indexes'][self.column]))
+
+        def compute(self, table, database):
+            ...
+
 class Operator:
     class Gate:
         def __init__(self, *operands):
