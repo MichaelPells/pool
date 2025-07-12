@@ -125,6 +125,15 @@ class Numbers:
         def compute(self, table, database):
             ...
 
+
+class Strings:
+    Var = Variable.Var
+
+
+class Dates:
+    Var = Variable.Var
+
+
 class Operator:
     class Gate:
         def __init__(self, *operands):
