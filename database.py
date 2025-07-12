@@ -81,6 +81,10 @@ class Variable:
         def compute(self, table, database):
             ...
 
+
+class Numbers:
+    Var = Variable.Var
+
     class max(Var):
         def __init__(self, column):
             self.column = column
