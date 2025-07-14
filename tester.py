@@ -171,7 +171,7 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from database import Database, Operator as Op, Variable as Var
+from database import Database, Operator as Op, Variable as Var, Numbers
 
 db =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
@@ -188,7 +188,12 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-db.update("Table1", {"id": 200}, record={"phone": "Akinpelumi"})
-result = db.read("Table1", {"surname": Var.values("phone")})
-print(result.get())
+# db.update("Table1", {"id": 200}, record={"phone": "Akinpelumi"})
+# result = db.read("Table1", {"surname": Var.values("phone")})
+# print(result.get())
+# print(result.count)
+
+db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
+result = db.read("Table1", {"id": 200})
+print(result.get(row=0, column="phone").compute("Table1", db))
 print(result.count)

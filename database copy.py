@@ -89,19 +89,14 @@ class Numbers:
         def __init__(self, column):
             self.column = column
 
-        def index(self, table, indexes, column, index, database):
-            field = self.compute(table, database)
-
-            if field not in indexes[column]:
-                indexes[column][field] = {}
-
-            indexes[column][field][index] = index
+        def index(self, table, database):
+            ...
 
         def process(self, table, column, database):
-            return database._select(table, column, self.compute(table, database))
+            return database._select(table, column, max(database.tables[table]['indexes'][self.column]))
 
         def compute(self, table, database):
-            return max(database.tables[table]['indexes'][self.column])
+            ...
 
     class min(Var):
         def __init__(self, column):
@@ -248,13 +243,10 @@ class Database:
                 row = entries[index]
                 field = row[offset]
 
-                if not isinstance(field, Variable.Var):
-                    if field not in indexes[column]:
-                        indexes[column][field] = {}
+                if field not in indexes[column]:
+                    indexes[column][field] = {}
 
-                    indexes[column][field][index] = index
-                else:
-                    field.index(table, indexes, column, index, self)
+                indexes[column][field][index] = index
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
