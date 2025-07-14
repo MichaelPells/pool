@@ -194,6 +194,6 @@ db.create("Table1", columns=columns, entries=entries)
 # print(result.count)
 
 db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
-result = db.read("Table1", {"id": 200})
+result = db.read("Table1", {"phone": Numbers.max("id")})
 print(result.get(row=0, column="phone").compute("Table1", db))
 print(result.count)
