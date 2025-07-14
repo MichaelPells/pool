@@ -1,8 +1,27 @@
 import threading
 
+class Params:
+    def __init__(self, **params):
+        for key, value in params.items():
+            self.__setattr__(key, value)
+
 
 class Variable:
-    class Var: ...
+    class Var:
+        def index(self, table=None, database=None, params=Params()):
+            self.table = self.table or table
+            self.database = self.database or database
+
+            indexes = params.indexes
+            column = params.column
+            index = params.index
+
+            field = self.compute()
+
+            if field not in indexes[column]:
+                indexes[column][field] = {}
+
+            indexes[column][field][index] = index
 
     class Const: ...
 
@@ -11,9 +30,6 @@ class Variable:
             self.variable = variable
 
         def __len__(self): return 1
-
-        def index(self, table, database):
-            ... # index variable
 
         def process(self, table, column, database):
             value = self.variable
@@ -31,9 +47,6 @@ class Variable:
     class null(Var):
         def __len__(self): return 0
 
-        def index(self, table, database):
-            ...
-
         def process(self, table, column, database):
             return database._select(table, column, Variable.escape(self))
         
@@ -47,9 +60,6 @@ class Variable:
             self.values = values
 
         def __len__(self): return 1
-
-        def index(self, table, database):
-            ...
 
         def process(self, table, column, database):
             results = []
@@ -69,9 +79,6 @@ class Variable:
 
         def __len__(self): return 1
 
-        def index(self, table, database):
-            ...
-
         def process(self, table, column, database):
             self.table = self.table or table
             values = list(database.tables[self.table]['indexes'][self.column].keys())
@@ -86,29 +93,29 @@ class Numbers:
     Var = Variable.Var
 
     class max(Var):
-        def __init__(self, column):
+        def __init__(self, column, table=None, database=None):
+            self.table = table
+            self.database = database
+
             self.column = column
 
-        def index(self, table, indexes, column, index, database):
-            field = self.compute(table, database)
+        def process(self, table=None, database=None, params=Params()):
+            self.table = self.table or table
+            self.database = self.database or database
 
-            if field not in indexes[column]:
-                indexes[column][field] = {}
+            column = params.column
 
-            indexes[column][field][index] = index
+            return database._select(self.table, column, self.compute())
 
-        def process(self, table, column, database):
-            return database._select(table, column, self.compute(table, database))
+        def compute(self, table=None, database=None):
+            self.table = self.table or table
+            self.database = self.database or database
 
-        def compute(self, table, database):
-            return max(database.tables[table]['indexes'][self.column])
+            return max(self.database.tables[self.table]['indexes'][self.column])
 
     class min(Var):
         def __init__(self, column):
             self.column = column
-
-        def index(self, table, database):
-            ...
 
         def process(self, table, column, database):
             return database._select(table, column, min(database.tables[table]['indexes'][self.column]))
@@ -120,11 +127,7 @@ class Numbers:
         def __init__(self, column):
             self.column = column
 
-        def index(self, table, database):
-            ...
-
         def process(self, table, column, database):
-            print(sum(database.tables[table]['indexes'][self.column]))
             return database._select(table, column, sum(database.tables[table]['indexes'][self.column]))
 
         def compute(self, table, database):
@@ -254,7 +257,7 @@ class Database:
 
                     indexes[column][field][index] = index
                 else:
-                    field.index(table, indexes, column, index, self)
+                    field.index(table, self, Params(indexes=indexes, column=column, index=index))
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
@@ -265,7 +268,7 @@ class Database:
             else:
                 return list(Column[value].keys())
         else:
-            return value.process(table, column, self)
+            return value.process(table, self, Params(column=column))
 
     def _selector(self, table, query):
         if type(query) == list:
