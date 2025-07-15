@@ -82,23 +82,27 @@ class Variable:
             return 
 
     class values(Var):
-        def __init__(self, column, table=None): # Find better default for column!
-            self.column = column
+        def __init__(self, column, database=None, table=None): # Find better default for column!
             self.table = table
+            self.database = database
+
+            self.column = column
 
         def __len__(self): return 1
 
-        def process(self, table, column, database):
+        def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
-            values = list(database.tables[self.table]['indexes'][self.column].keys())
-    
-            return database._select(table, column, Variable.any(values))
+            self.database = self.database or database
+
+            column = params.column
+
+            return database._select(self.table, column, self.compute())
         
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
 
-            return 
+            return Variable.any(list(self.database.tables[self.table]['indexes'][self.column].keys()))
 
 
 class Numbers:
