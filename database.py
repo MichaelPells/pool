@@ -72,7 +72,7 @@ class Variable:
 
             for value in self.values:
                 results.append(database._select(table, column, value))
-    
+
             return list(set(results[0]).union(*results[1:]))
         
         def compute(self, database=None, table=None):
@@ -126,30 +126,46 @@ class Numbers:
             return max(self.database.tables[self.table]['indexes'][self.column])
 
     class min(Var):
-        def __init__(self, column):
+        def __init__(self, column, database=None, table=None):
+            self.table = table
+            self.database = database
+
             self.column = column
 
-        def process(self, table, column, database):
-            return database._select(table, column, min(database.tables[table]['indexes'][self.column]))
+        def process(self, database=None, table=None, params=Params()):
+            self.table = self.table or table
+            self.database = self.database or database
+
+            column = params.column
+
+            return database._select(self.table, column, self.compute())
 
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
 
-            return min(database.tables[table]['indexes'][self.column])
+            return min(self.database.tables[self.table]['indexes'][self.column])
 
     class sum(Var):
-        def __init__(self, column):
+        def __init__(self, column, database=None, table=None):
+            self.table = table
+            self.database = database
+
             self.column = column
 
-        def process(self, table, column, database):
-            return database._select(table, column, sum(database.tables[table]['indexes'][self.column]))
+        def process(self, database=None, table=None, params=Params()):
+            self.table = self.table or table
+            self.database = self.database or database
+
+            column = params.column
+
+            return database._select(self.table, column, self.compute())
 
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
 
-            return sum(database.tables[table]['indexes'][self.column])
+            return sum(self.database.tables[self.table]['indexes'][self.column])
 
 
 class Strings:
