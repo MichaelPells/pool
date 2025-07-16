@@ -78,7 +78,7 @@ class Variable:
 
             results = []
 
-            for value in self.values:
+            for value in self.compute():
                 results.append(database._select(table, column, value))
 
             return list(set(results[0]).union(*results[1:]))
@@ -87,7 +87,7 @@ class Variable:
             self.table = self.table or table
             self.database = self.database or database
 
-            return 
+            return self.values
 
     class values(Var):
         def __init__(self, column, database=None, table=None): # Find better default for column!
