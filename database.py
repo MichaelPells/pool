@@ -27,25 +27,15 @@ class Variable:
 
     class escape(Var, Const):
         def __init__(self, variable):
+            self.table = None
+            self.database = None
+
             self.variable = variable
 
         def __len__(self): return 1
-
-        def process(self, table, column, database):
-            value = self.variable
-
-            Column = database.tables[table]['indexes'][column]
         
-            if value not in Column:
-                    return []
-            else:
-                return list(Column[value].keys())
-        
-        def compute(self, database=None, table=None):
-            self.table = self.table or table
-            self.database = self.database or database
-
-            return 
+        def compute(self):
+            return self.variable
 
     class null(Var):
         class null:...
@@ -319,6 +309,13 @@ class Database:
         Column = self.tables[table]['indexes'][column]
 
         if not isinstance(value, Variable.Var):
+            if value not in Column:
+                return []
+            else:
+                return list(Column[value].keys())
+        elif isinstance(value, Variable.Const):
+            value = value.compute()
+
             if value not in Column:
                 return []
             else:
