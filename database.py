@@ -48,26 +48,44 @@ class Variable:
             return 
 
     class null(Var):
+        class null:...
+
+        NULL = null()
+
+        def __init__(self):
+            self.table = None
+            self.database = None
+
+            self.value = Variable.null.NULL
+
         def __len__(self): return 0
 
-        def process(self, table, column, database):
-            return database._select(table, column, Variable.escape(self))
-        
-        def compute(self, database=None, table=None):
+        def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
             self.database = self.database or database
 
-            return 
+            column = params.column
 
-    NULL = null()
+            return self.database._select(self.table, column, self.compute())
+        
+        def compute(self):
+            return self.value
 
     class any(Var):
-        def __init__(self, values: list):
+        def __init__(self, values: list, database=None, table=None):
+            self.table = table
+            self.database = database
+
             self.values = values
 
         def __len__(self): return 1
 
-        def process(self, table, column, database):
+        def process(self, database=None, table=None, params=Params()):
+            self.table = self.table or table
+            self.database = self.database or database
+
+            column = params.column
+
             results = []
 
             for value in self.values:
@@ -209,7 +227,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.NULL, table = None):
+    def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.null(), table = None):
         table = table or self.database.primarytable
         Table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
