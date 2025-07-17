@@ -7,6 +7,8 @@ class Params:
 
 
 class Variable:
+    class Const: ...
+
     class Var:
         def index(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -22,8 +24,6 @@ class Variable:
                 indexes[column][field] = {}
 
             indexes[column][field][index] = index
-
-    class Const: ...
 
     class escape(Var, Const):
         def __init__(self, variable):
@@ -78,7 +78,9 @@ class Variable:
 
             results = []
 
-            for value in self.compute():
+            values = self.compute()
+
+            for value in values:
                 results.append(database._select(table, column, value))
 
             return list(set(results[0]).union(*results[1:]))
@@ -104,13 +106,13 @@ class Variable:
 
             column = params.column
 
-            return database._select(self.table, column, self.compute())
+            return database._select(self.table, column, self.compute()) # Check for similar here instead!
         
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
 
-            return Variable.any(list(self.database.tables[self.table]['indexes'][self.column].keys()))
+            return list(self.database.tables[self.table]['indexes'][self.column].keys())
 
 
 class Numbers:
