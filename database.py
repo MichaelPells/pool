@@ -117,6 +117,11 @@ class Variable:
             self.table = self.table or table
             self.database = self.database or database
 
+            if isinstance(self.column, Variable.Var):
+                self.column.table = self.column.table or self.table
+                self.column.database = self.column.database or self.database
+                self.column = self.column.compute()
+
             return list(self.database.tables[self.table]['indexes'][self.column].keys())
 
 
@@ -141,6 +146,11 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
+            
+            if isinstance(self.column, Variable.Var):
+                self.column.table = self.column.table or self.table
+                self.column.database = self.column.database or self.database
+                self.column = self.column.compute()
 
             return max(self.database.tables[self.table]['indexes'][self.column])
 
@@ -162,6 +172,11 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
+            
+            if isinstance(self.column, Variable.Var):
+                self.column.table = self.column.table or self.table
+                self.column.database = self.column.database or self.database
+                self.column = self.column.compute()
 
             return min(self.database.tables[self.table]['indexes'][self.column])
 
@@ -183,6 +198,11 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.table = self.table or table
             self.database = self.database or database
+            
+            if isinstance(self.column, Variable.Var):
+                self.column.table = self.column.table or self.table
+                self.column.database = self.column.database or self.database
+                self.column = self.column.compute()
 
             return sum(self.database.tables[self.table]['indexes'][self.column])
 
