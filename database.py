@@ -90,7 +90,7 @@ class Variable:
             self.database = self.database or database
 
             if isinstance(self.values, Variable.Var):
-                self.values.table = self.values.table or self.table # Is this the best thing?
+                self.values.table = self.values.table or self.table
                 self.values.database = self.values.database or self.database
                 self.values = self.values.compute()
 
