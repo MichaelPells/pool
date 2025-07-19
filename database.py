@@ -18,12 +18,22 @@ class Variable:
             column = params.column
             index = params.index
 
+            def register(field):
+                if field not in indexes[column]:
+                    indexes[column][field] = {}
+
+                indexes[column][field][index] = index
+
             field = self.compute()
 
-            if field not in indexes[column]:
-                indexes[column][field] = {}
-
-            indexes[column][field][index] = index
+            if type(self) in [
+                Variable.any,
+                Variable.values
+                ]:
+                for value in field:
+                    register(value)
+            else:
+                register(field)
 
     class escape(Var, Const):
         def __init__(self, variable):
@@ -374,6 +384,7 @@ class Database:
 
     def create(self, table, columns=[], entries=[], primarykey=None):
         with self.lock:
+            references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
             count = len(entries)
@@ -381,7 +392,7 @@ class Database:
             self.tables[table] = {
                 'columns': columns,
                 'entries': entries,
-                'references': {},
+                'references': references,
                 'indexes': {},
                 'count': count,
                 'nextindex': count + 1,

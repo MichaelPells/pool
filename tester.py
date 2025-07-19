@@ -174,7 +174,7 @@
 from database import Database, Operator as Op, Variable as Var, Numbers
 
 db =  Database()
-columns = [668, "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
+columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
 entries = [[int(y.strip()) if y.isdigit() else y.strip()
             for y in x[:-1].split(",")]
             for x in open("SampleData1.csv").read().splitlines()]
@@ -188,8 +188,8 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-# db.update("Table1", {"id": 200}, record={"phone": "id"})
-result = db.read("Table1", {668: Numbers.max(Numbers.max(668))})
+db.update("Table1", {"id": 200}, record={"phone": Var.values("surname")})
+result = db.read("Table1", {"phone": "Akinpelumi"})
 print(result.get())
 print(result.count)
 
