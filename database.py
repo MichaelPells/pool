@@ -464,13 +464,14 @@ class Database:
             Table = self.tables[table]
             start = Table['nextindex']
             stop = start + len(entries)
+            rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)
             Table['nextindex'] = stop
 
-            self._buildindex(table, rows=range(start, stop))
+            self._buildindex(table, Result(rows, self))
 
     def delete(self, table):
         with self.lock:

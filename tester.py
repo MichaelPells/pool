@@ -174,9 +174,9 @@
 from database import Database, Operator as Op, Variable as Var, Numbers
 
 db =  Database()
-columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school"]
-entries = [[int(y.strip()) if y.isdigit() else y.strip()
-            for y in x[:-1].split(",")]
+columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]
+entries = [[int(y.strip()) if y.isdigit() else (y.strip() if y.strip() else Var.null())
+            for y in x.split(",")]
             for x in open("SampleData1.csv").read().splitlines()]
 db.create("Table1", columns=columns, entries=entries)
 
@@ -188,8 +188,9 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-db.update("Table1", {"id": 200}, record={"phone": Var.values("surname")})
-result = db.read("Table1", {"phone": "Akinpelumi"})
+db.insert("Table1", [[669,"akinpelumib5@gmail.com","Bukola","Grace","Akinpelumi","Female","Nigeria","2.34816E+12","No",Var.null(),Var.null()]])
+# db.update("Table1", {"id": 200}, record={"phone": Var.null()})
+result = db.read("Table1", {"id": 668})
 print(result.get())
 print(result.count)
 
