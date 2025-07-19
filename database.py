@@ -35,6 +35,8 @@ class Variable:
             else:
                 register(field)
 
+            # Make any necessary references here!
+
     class escape(Var, Const):
         def __init__(self, variable):
             self.table = None

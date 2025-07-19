@@ -188,9 +188,8 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-db.insert("Table1", [[669,"akinpelumib5@gmail.com","Bukola","Grace","Akinpelumi","Female","Nigeria","2.34816E+12","No",Var.null(),Var.null()]])
-# db.update("Table1", {"id": 200}, record={"phone": Var.null()})
-result = db.read("Table1", {"id": 668})
+# db.update("Table1", {"id": 200}, record={"phone": Var.escape(Var.null())})
+result = db.read("Table1", {"school": Var.escape(Var.null())})
 print(result.get())
 print(result.count)
 
