@@ -171,18 +171,19 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from database import Database, Operator as Op
-from variables import Variable as Var, Numbers
+from database import Database
+from operators import *
+from variables import *
 
 db =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]
-entries = [[int(y.strip()) if y.isdigit() else (y.strip() if y.strip() else Var.null())
+entries = [[int(y.strip()) if y.isdigit() else (y.strip() if y.strip() else Null())
             for y in x.split(",")]
             for x in open("SampleData1.csv").read().splitlines()]
 db.create("Table1", columns=columns, entries=entries)
 
 # # db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
-# db.update("Table1", Op.NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
+# db.update("Table1", NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
 # result = db.read("Table1", {"country": Var.any([Var.NULL, "nigeria"])})
 
 # for r in result.get():
@@ -190,7 +191,7 @@ db.create("Table1", columns=columns, entries=entries)
 # print(result.count)
 
 # db.update("Table1", {"id": 200}, record={"phone": Var.escape(Var.null())})
-result = db.read("Table1", {"school": Var.escape(Var.null())})
+result = db.read("Table1", {"school": Escape(Null())})
 print(result.get())
 print(result.count)
 

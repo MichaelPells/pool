@@ -1,25 +1,7 @@
 import threading
 
 from variables import *
-
-class Operator:
-    class Gate:
-        def __init__(self, *operands):
-            self.operands = operands
-
-    class AND(Gate):
-        def process(self, results, table, database):
-            return set(results[0]).intersection(*results[1:])
-
-    class OR(Gate):
-        def process(self, results, table, database):
-            return set(results[0]).union(*results[1:])
-
-    class NOT(Gate):
-        def process(self, results, table, database):
-            superset = database.tables[table]['entries'].keys()
-            return set(superset).difference(results[0])
-
+from operators import *
 
 class Result:
     def __init__(self, rows=[], database=None):
@@ -31,7 +13,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.null(), table = None):
+    def get(self, row: list | Any = None, column: list | set | Any = Null(), table = None):
         table = table or self.database.primarytable
         Table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
@@ -111,7 +93,7 @@ class Database:
                 row = entries[index]
                 field = row[offset]
 
-                if not isinstance(field, Variable.Var):
+                if not isinstance(field, Var):
                     if field not in indexes[column]:
                         indexes[column][field] = {}
 
@@ -122,12 +104,12 @@ class Database:
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
 
-        if not isinstance(value, Variable.Var):
+        if not isinstance(value, Var):
             if value not in Column:
                 return []
             else:
                 return list(Column[value].keys())
-        elif isinstance(value, Variable.Const):
+        elif isinstance(value, Const):
             value = value.compute()
 
             if value not in Column:
@@ -145,7 +127,7 @@ class Database:
             column, value = list(query.items())[0]
             return self._select(table=table, column=column, value=value)
         
-        if isinstance(query, Operator.Gate):
+        if isinstance(query, Gate):
             results = []
 
             for operand in query.operands:
