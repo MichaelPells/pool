@@ -172,8 +172,8 @@
 # print(NULL or "Yes")
 
 from database import Database
-from operators import *
-from variables import *
+from database.operators import *
+from database.variables import *
 
 db =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]

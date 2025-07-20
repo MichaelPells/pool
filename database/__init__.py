@@ -1,157 +1,7 @@
 import threading
 
-
-class Variable:
-    class Var: ...
-
-    class Const: ...
-
-    class escape(Var, Const):
-        def __init__(self, variable):
-            self.variable = variable
-
-        def __len__(self): return 1
-
-        def index(self, table, database):
-            ... # index variable
-
-        def process(self, table, column, database):
-            value = self.variable
-
-            Column = database.tables[table]['indexes'][column]
-        
-            if value not in Column:
-                    return []
-            else:
-                return list(Column[value].keys())
-        
-        def compute(self, table, database):
-            ... # return variable
-
-    class null(Var):
-        def __len__(self): return 0
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            return database._select(table, column, Variable.escape(self))
-        
-        def compute(self, table, database):
-            ...
-
-    NULL = null()
-
-    class any(Var):
-        def __init__(self, values: list):
-            self.values = values
-
-        def __len__(self): return 1
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            results = []
-
-            for value in self.values:
-                results.append(database._select(table, column, value))
-    
-            return list(set(results[0]).union(*results[1:]))
-        
-        def compute(self, table, database):
-            ...
-
-    class values(Var):
-        def __init__(self, column, table=None): # Find better default for column!
-            self.column = column
-            self.table = table
-
-        def __len__(self): return 1
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            self.table = self.table or table
-            values = list(database.tables[self.table]['indexes'][self.column].keys())
-    
-            return database._select(table, column, Variable.any(values))
-        
-        def compute(self, table, database):
-            ...
-
-
-class Numbers:
-    Var = Variable.Var
-
-    class max(Var):
-        def __init__(self, column):
-            self.column = column
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            return database._select(table, column, max(database.tables[table]['indexes'][self.column]))
-
-        def compute(self, table, database):
-            ...
-
-    class min(Var):
-        def __init__(self, column):
-            self.column = column
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            return database._select(table, column, min(database.tables[table]['indexes'][self.column]))
-
-        def compute(self, table, database):
-            ...
-
-    class sum(Var):
-        def __init__(self, column):
-            self.column = column
-
-        def index(self, table, database):
-            ...
-
-        def process(self, table, column, database):
-            print(sum(database.tables[table]['indexes'][self.column]))
-            return database._select(table, column, sum(database.tables[table]['indexes'][self.column]))
-
-        def compute(self, table, database):
-            ...
-
-
-class Strings:
-    Var = Variable.Var
-
-
-class Dates:
-    Var = Variable.Var
-
-
-class Operator:
-    class Gate:
-        def __init__(self, *operands):
-            self.operands = operands
-
-    class AND(Gate):
-        def process(self, results, table, database):
-            return set(results[0]).intersection(*results[1:])
-
-    class OR(Gate):
-        def process(self, results, table, database):
-            return set(results[0]).union(*results[1:])
-
-    class NOT(Gate):
-        def process(self, results, table, database):
-            superset = database.tables[table]['entries'].keys()
-            return set(superset).difference(results[0])
-
+from database.variables import *
+from database.operators import *
 
 class Result:
     def __init__(self, rows=[], database=None):
@@ -163,7 +13,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Variable.any = None, column: list | set | Variable.any = Variable.NULL, table = None):
+    def get(self, row: list | Any = None, column: list | set | Any = Null(), table = None):
         table = table or self.database.primarytable
         Table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
@@ -243,21 +93,31 @@ class Database:
                 row = entries[index]
                 field = row[offset]
 
-                if field not in indexes[column]:
-                    indexes[column][field] = {}
+                if not isinstance(field, Var):
+                    if field not in indexes[column]:
+                        indexes[column][field] = {}
 
-                indexes[column][field][index] = index
+                    indexes[column][field][index] = index
+                else:
+                    field.index(self, table, Params(indexes=indexes, column=column, index=index))
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
 
-        if not isinstance(value, Variable.Var):
+        if not isinstance(value, Var):
+            if value not in Column:
+                return []
+            else:
+                return list(Column[value].keys())
+        elif isinstance(value, Const):
+            value = value.compute()
+
             if value not in Column:
                 return []
             else:
                 return list(Column[value].keys())
         else:
-            return value.process(table, column, self)
+            return value.process(self, table, Params(column=column))
 
     def _selector(self, table, query):
         if type(query) == list:
@@ -267,7 +127,7 @@ class Database:
             column, value = list(query.items())[0]
             return self._select(table=table, column=column, value=value)
         
-        if isinstance(query, Operator.Gate):
+        if isinstance(query, Gate):
             results = []
 
             for operand in query.operands:
@@ -283,6 +143,7 @@ class Database:
 
     def create(self, table, columns=[], entries=[], primarykey=None):
         with self.lock:
+            references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
             count = len(entries)
@@ -290,7 +151,7 @@ class Database:
             self.tables[table] = {
                 'columns': columns,
                 'entries': entries,
-                'references': {},
+                'references': references,
                 'indexes': {},
                 'count': count,
                 'nextindex': count + 1,
@@ -362,13 +223,14 @@ class Database:
             Table = self.tables[table]
             start = Table['nextindex']
             stop = start + len(entries)
+            rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)
             Table['nextindex'] = stop
 
-            self._buildindex(table, rows=range(start, stop))
+            self._buildindex(table, Result(rows, self))
 
     def delete(self, table):
         with self.lock:
