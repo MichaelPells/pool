@@ -171,7 +171,8 @@
 # NULL = Null()
 # print(NULL or "Yes")
 
-from database import Database, Operator as Op, Variable as Var, Numbers
+from database import Database, Operator as Op
+from variables import Variable as Var, Numbers
 
 db =  Database()
 columns = ["id", "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]
