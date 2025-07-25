@@ -32,12 +32,18 @@ class Var:
         else:
             register(field)
 
-        # Make any necessary references here!
         if self.references:
-            for column, rows in self.references.items():
+            references = self.database.tables[self.table]['references']
+
+            for col, rows in self.references.items():
                 for row in rows:
-                    if row not in self.database.references[column]:
-                        self.database.references[column][row] = []
+                    if row not in references[col]:
+                        references[col][row] = {}
+
+                    if column not in references[col][row]:
+                        references[col][row][column] = []
+
+                    references[col][row][column].append(index)
                     
 
 class Escape(Var, Const):
@@ -46,6 +52,7 @@ class Escape(Var, Const):
         self.database = None
 
         self.variable = variable
+        self.references = {}
 
     def __len__(self): return 1
     
@@ -62,6 +69,7 @@ class Null(Var):
         self.database = None
 
         self.value = Null.NULL
+        self.references = {}
 
     def __len__(self): return 0
 
@@ -82,6 +90,7 @@ class Any(Var):
         self.database = database
 
         self.values = values
+        self.references = {}
 
     def __len__(self): return 1
 
@@ -117,6 +126,7 @@ class Values(Var):
         self.database = database
 
         self.column = column
+        self.references = {column: '*'}
 
     def __len__(self): return 1
 
@@ -147,6 +157,7 @@ class Numbers:
             self.database = database
 
             self.column = column
+            self.references = {column: '*'}
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -173,6 +184,7 @@ class Numbers:
             self.database = database
 
             self.column = column
+            self.references = {column: '*'}
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -199,6 +211,7 @@ class Numbers:
             self.database = database
 
             self.column = column
+            self.references = {column: '*'}
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table

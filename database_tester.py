@@ -188,10 +188,10 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-# db.update("Table1", {"id": 200}, record={"phone": Escape(Null())})
-result = db.read("Table1", {"school": Escape(Null())})
-print(result.get())
-print(result.count)
+print(db.tables["Table1"]["references"])
+db.update("Table1", {"id": 200}, record={"phone": Values("surname")})
+print(db.tables["Table1"]["references"])
+
 
 # db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
 # result = db.read("Table1", {"phone": Numbers.max("id")})
