@@ -81,6 +81,7 @@ class Database:
         columns = {column: Table['columns'][column] for column in columns} or Table['columns']
         entries = Table['entries']
         indexes = Table['indexes']
+        references = Table['references']
 
         for column in columns:
             if column not in indexes:
@@ -100,6 +101,20 @@ class Database:
                     indexes[column][field][index] = index
                 else:
                     field.index(self, table, Params(indexes=indexes, column=column, index=index))
+                
+                # Rebuild index for its dependent variables in references
+                if index in references[column]:
+                    cols = references[column][index]
+
+                    for col, rs in cols.items():
+                        self._buildindex(table, Result(rs, self), [col])
+
+                if '*' in references[column]:
+                    cols = references[column]['*']
+
+                    for col, rs in cols.items():
+                        self._buildindex(table, Result(rs, self), [col])
+
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
@@ -141,7 +156,7 @@ class Database:
 
             return query.process(results, table, self)
 
-    def create(self, table, columns=[], entries=[], primarykey=None):
+    def create(self, table, columns=[], entries=[], primarykey=None): # What happens when entries contain dependent variables?
         with self.lock:
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}

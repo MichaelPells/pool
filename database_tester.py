@@ -188,9 +188,12 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
+db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
 print(db.tables["Table1"]["references"])
-db.update("Table1", {"id": 200}, record={"phone": Values("surname")})
+print(db.tables["Table1"]["indexes"]["phone"][668])
+db.update("Table1", {"id": 100}, record={"id": 1000})
 print(db.tables["Table1"]["references"])
+print(db.tables["Table1"]["indexes"]["phone"][1000])
 
 
 # db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
