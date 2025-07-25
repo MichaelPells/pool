@@ -21,7 +21,13 @@ class Var:
 
             indexes[column][field][index] = index
 
+        prev = self.prev
         field = self.compute()
+
+        if prev != None and field != prev : # Can never be None!
+            del indexes[column][prev][index]
+            if not indexes[column][prev]:
+                del indexes[column][prev]
 
         if type(self) in [
             Any,
@@ -43,7 +49,8 @@ class Var:
                     if column not in references[col][row]:
                         references[col][row][column] = []
 
-                    references[col][row][column].append(index)
+                    if index not in references[col][row][column]:
+                        references[col][row][column].append(index)
                     
 
 class Escape(Var, Const):
@@ -53,6 +60,7 @@ class Escape(Var, Const):
 
         self.variable = variable
         self.references = {}
+        self.prev = None # Can never be None!
 
     def __len__(self): return 1
     
@@ -70,6 +78,7 @@ class Null(Var):
 
         self.value = Null.NULL
         self.references = {}
+        self.prev = None # Can never be None!
 
     def __len__(self): return 0
 
@@ -91,6 +100,7 @@ class Any(Var):
 
         self.values = values
         self.references = {}
+        self.prev = None # Can never be None!
 
     def __len__(self): return 1
 
@@ -127,6 +137,7 @@ class Values(Var):
 
         self.column = column
         self.references = {column: '*'}
+        self.prev = None # Can never be None!
 
     def __len__(self): return 1
 
@@ -147,7 +158,10 @@ class Values(Var):
             self.column.database = self.column.database or self.database
             self.column = self.column.compute()
 
-        return list(self.database.tables[self.table]['indexes'][self.column].keys())
+        curr = list(self.database.tables[self.table]['indexes'][self.column].keys())
+        self.prev = curr
+
+        return curr
 
 
 class Numbers:
@@ -158,6 +172,7 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
+            self.prev = None # Can never be None!
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -176,7 +191,10 @@ class Numbers:
                 self.column.database = self.column.database or self.database
                 self.column = self.column.compute()
 
-            return max(self.database.tables[self.table]['indexes'][self.column])
+            curr = max(self.database.tables[self.table]['indexes'][self.column])
+            self.prev = curr
+
+            return curr
 
     class min(Var):
         def __init__(self, column, database=None, table=None):
@@ -185,6 +203,7 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
+            self.prev = None # Can never be None!
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -203,7 +222,10 @@ class Numbers:
                 self.column.database = self.column.database or self.database
                 self.column = self.column.compute()
 
-            return min(self.database.tables[self.table]['indexes'][self.column])
+            curr = min(self.database.tables[self.table]['indexes'][self.column])
+            self.prev = curr
+
+            return curr
 
     class sum(Var):
         def __init__(self, column, database=None, table=None):
@@ -212,6 +234,7 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
+            self.prev = None # Can never be None!
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -230,7 +253,10 @@ class Numbers:
                 self.column.database = self.column.database or self.database
                 self.column = self.column.compute()
 
-            return sum(self.database.tables[self.table]['indexes'][self.column])
+            curr = sum(self.database.tables[self.table]['indexes'][self.column])
+            self.prev = curr
+
+            return curr
 
 
 class Strings:
