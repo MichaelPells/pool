@@ -33,6 +33,12 @@ class Var:
             register(field)
 
         # Make any necessary references here!
+        if self.references:
+            for column, rows in self.references.items():
+                for row in rows:
+                    if row not in self.database.references[column]:
+                        self.database.references[column][row] = []
+                    
 
 class Escape(Var, Const):
     def __init__(self, variable):
