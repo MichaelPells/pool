@@ -178,7 +178,7 @@ columns = ["id", "email", "firstname", "middlename", "surname", "gender", "count
 entries = [[int(y.strip()) if y.isdigit() else (y.strip() if y.strip() else Null())
             for y in x.split(",")]
             for x in open("SampleData1.csv").read().splitlines()]
-db.create("Table1", columns=columns, entries=entries)
+db.create("Table1", columns=columns, entries=entries, primarykey="id")
 
 # # db.update("Table1", {"surname": "Akinpelumi"}, record={"country": "Canada"})
 # db.update("Table1", NOT({"country": Var.any(["Nigeria", "NIGERIA", "Nigerian", "nigeria"])}), {"country": Var.NULL})
@@ -188,13 +188,9 @@ db.create("Table1", columns=columns, entries=entries)
 #     print(r)
 # print(result.count)
 
-db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
-print(db.tables["Table1"]["references"])
-print(db.tables["Table1"]["indexes"]["phone"][668])
-db.update("Table1", {"id": 100}, record={"id": 1000})
-print(db.tables["Table1"]["references"])
-print(db.tables["Table1"]["indexes"]["phone"][1000])
-
+db.update("Table1", {"id": 200}, record={"phone": Field(668, "surname")})
+result = db.read("Table1", {"id": 200})
+print(result.get(row=0, column="phone").retrieve())
 
 # db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
 # result = db.read("Table1", {"phone": Numbers.max("id")})

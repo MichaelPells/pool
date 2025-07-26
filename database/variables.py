@@ -152,7 +152,7 @@ class Values(Var):
         self.stored = False
         self.prev = None
 
-    def __len__(self): return 1
+    def __len__(self): return 1 # Should it really be 1??
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -172,6 +172,53 @@ class Values(Var):
             self.column = self.column.retrieve()
 
         curr = list(self.database.tables[self.table]['indexes'][self.column].keys())
+        self.prev = curr
+        self.stored = True
+
+        return curr
+    
+class Field(Var):
+    def __init__(self, row, column, database=None, table=None): # Find better default for column!
+        self.table = table
+        self.database = database
+
+        self.row = row
+        self.column = column
+        self.references = {column: '*'} # There will be a problem if `column` is a variable!
+        self.stored = False
+        self.prev = None
+
+    def __len__(self): return 1
+
+    def process(self, database=None, table=None, params=Params()):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        column = params.column
+
+        return database._select(self.table, column, self.retrieve())
+    
+    def compute(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if isinstance(self.row, Var):
+            self.row.table = self.row.table or self.table
+            self.row.database = self.row.database or self.database
+            self.row = self.row.retrieve()
+
+        if isinstance(self.column, Var):
+            self.column.table = self.column.table or self.table
+            self.column.database = self.column.database or self.database
+            self.column = self.column.retrieve()
+
+        Table = self.database.tables[self.table]
+        key = Table["primarykey"]
+        index = list(Table['indexes'][key][self.row].keys())[0]
+        entry = Table['entries'][index]
+        offset = Table['columns'][self.column]
+
+        curr = entry[offset]
         self.prev = curr
         self.stored = True
 
