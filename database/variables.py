@@ -30,7 +30,7 @@ class Var:
                 if not indexes[column][prev]:
                     del indexes[column][prev]
         else:
-           field = self.compute() 
+           field = self.compute()
 
         if type(self) in [
             Any,
@@ -54,6 +54,15 @@ class Var:
 
                     if index not in references[col][row][column]:
                         references[col][row][column].append(index)
+
+    def retrieve(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if self.stored:
+            return self.prev
+        else:
+            return self.compute()
                     
 
 class Escape(Var, Const):
@@ -91,7 +100,7 @@ class Null(Var):
 
         column = params.column
 
-        return self.database._select(self.table, column, self.compute())
+        return self.database._select(self.table, column, self.retrieve())
     
     def compute(self):
         return self.value
@@ -115,7 +124,7 @@ class Any(Var):
 
         results = []
 
-        values = self.compute()
+        values = self.retrieve()
 
         for value in values:
             results.append(database._select(table, column, value))
@@ -129,7 +138,7 @@ class Any(Var):
         if isinstance(self.values, Var):
             self.values.table = self.values.table or self.table
             self.values.database = self.values.database or self.database
-            self.values = self.values.compute()
+            self.values = self.values.retrieve()
 
         return self.values
 
@@ -151,7 +160,7 @@ class Values(Var):
 
         column = params.column
 
-        return database._select(self.table, column, self.compute()) # Check for similar here instead!
+        return database._select(self.table, column, self.retrieve()) # Check for similar here instead!
     
     def compute(self, database=None, table=None):
         self.table = self.table or table
@@ -160,7 +169,7 @@ class Values(Var):
         if isinstance(self.column, Var):
             self.column.table = self.column.table or self.table
             self.column.database = self.column.database or self.database
-            self.column = self.column.compute()
+            self.column = self.column.retrieve()
 
         curr = list(self.database.tables[self.table]['indexes'][self.column].keys())
         self.prev = curr
@@ -186,7 +195,7 @@ class Numbers:
 
             column = params.column
 
-            return database._select(self.table, column, self.compute())
+            return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
             self.table = self.table or table
@@ -195,7 +204,7 @@ class Numbers:
             if isinstance(self.column, Var):
                 self.column.table = self.column.table or self.table
                 self.column.database = self.column.database or self.database
-                self.column = self.column.compute()
+                self.column = self.column.retrieve()
 
             curr = max(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
@@ -219,7 +228,7 @@ class Numbers:
 
             column = params.column
 
-            return database._select(self.table, column, self.compute())
+            return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
             self.table = self.table or table
@@ -228,7 +237,7 @@ class Numbers:
             if isinstance(self.column, Var):
                 self.column.table = self.column.table or self.table
                 self.column.database = self.column.database or self.database
-                self.column = self.column.compute()
+                self.column = self.column.retrieve()
 
             curr = min(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
@@ -252,7 +261,7 @@ class Numbers:
 
             column = params.column
 
-            return database._select(self.table, column, self.compute())
+            return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
             self.table = self.table or table
@@ -261,7 +270,7 @@ class Numbers:
             if isinstance(self.column, Var):
                 self.column.table = self.column.table or self.table
                 self.column.database = self.column.database or self.database
-                self.column = self.column.compute()
+                self.column = self.column.retrieve()
 
             curr = sum(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
