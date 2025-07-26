@@ -225,7 +225,7 @@ class Field(Var):
         return curr
 
 class Formula(Var):
-    def __init__(self, function, parameters, database=None, table=None): # Find better default for column!
+    def __init__(self, function, database=None, table=None, **parameters): # Find better default for column!
         self.table = table
         self.database = database
 
