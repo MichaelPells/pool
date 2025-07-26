@@ -188,7 +188,7 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 #     print(r)
 # print(result.count)
 
-db.update("Table1", {"id": 200}, record={"phone": Field(668, "surname")})
+db.update("Table1", {"id": 200}, record={"phone": Formula(lambda x, y: x - y, {"x": 2, "y": 4})})
 result = db.read("Table1", {"id": 200})
 print(result.get(row=0, column="phone").retrieve())
 

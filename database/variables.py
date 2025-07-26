@@ -184,7 +184,7 @@ class Field(Var):
 
         self.row = row
         self.column = column
-        self.references = {column: '*'} # There will be a problem if `column` is a variable!
+        self.references = {column: '*'} #*** There will be a problem if `column` is a variable!
         self.stored = False
         self.prev = None
 
@@ -219,6 +219,44 @@ class Field(Var):
         offset = Table['columns'][self.column]
 
         curr = entry[offset]
+        self.prev = curr
+        self.stored = True
+
+        return curr
+
+class Formula(Var):
+    def __init__(self, function, parameters, database=None, table=None): # Find better default for column!
+        self.table = table
+        self.database = database
+
+        self.function = function
+        self.parameters = parameters
+        self.references = {} #*** There will be a problem if `column` is a variable!
+        self.stored = False
+        self.prev = None
+
+    def __len__(self): return 1 # Should it really be 1??
+
+    def process(self, database=None, table=None, params=Params()):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        column = params.column
+
+        return database._select(self.table, column, self.retrieve()) # Check for similar here instead!
+    
+    def compute(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if isinstance(self.function, Var):
+            self.function.table = self.function.table or self.table
+            self.function.database = self.function.database or self.database
+            self.function = self.function.retrieve()
+
+        # Do above for `parameters`
+
+        curr = self.function(**self.parameters)
         self.prev = curr
         self.stored = True
 
