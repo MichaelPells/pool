@@ -55,6 +55,11 @@ class Var:
                     if index not in references[col][row][column]:
                         references[col][row][column].append(index)
 
+    def reference(self, variable, index):
+        column = variable.compute()
+        self.references.update({column: index})
+        self.references.update(variable.references)
+
     def retrieve(self, database=None, table=None):
         self.table = self.table or table
         self.database = self.database or database
@@ -148,7 +153,14 @@ class Values(Var):
         self.database = database
 
         self.column = column
-        self.references = {column: '*'} # There will be a problem if `column` is a variable!
+
+        self.references = {}
+
+        if not isinstance(self.column, Var):
+            self.references.update({self.column: '*'})
+        else:
+            self.reference(self.column, '*')
+
         self.stored = False
         self.prev = None
 
