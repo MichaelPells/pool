@@ -21,13 +21,16 @@ class Var:
 
             indexes[column][field][index] = index
 
-        prev = self.prev
-        field = self.compute()
+        if self.stored:
+            prev = self.prev
+            field = self.compute()
 
-        if prev != None and field != prev : # Can never be None!
-            del indexes[column][prev][index]
-            if not indexes[column][prev]:
-                del indexes[column][prev]
+            if field != prev :
+                del indexes[column][prev][index]
+                if not indexes[column][prev]:
+                    del indexes[column][prev]
+        else:
+           field = self.compute() 
 
         if type(self) in [
             Any,
@@ -60,7 +63,7 @@ class Escape(Var, Const):
 
         self.variable = variable
         self.references = {}
-        self.prev = None # Can never be None!
+        self.stored = False
 
     def __len__(self): return 1
     
@@ -78,7 +81,7 @@ class Null(Var):
 
         self.value = Null.NULL
         self.references = {}
-        self.prev = None # Can never be None!
+        self.stored = False
 
     def __len__(self): return 0
 
@@ -100,7 +103,7 @@ class Any(Var):
 
         self.values = values
         self.references = {}
-        self.prev = None # Can never be None!
+        self.stored = False # Can't Any have a reference too??
 
     def __len__(self): return 1
 
@@ -136,8 +139,9 @@ class Values(Var):
         self.database = database
 
         self.column = column
-        self.references = {column: '*'}
-        self.prev = None # Can never be None!
+        self.references = {column: '*'} # There will be a problem if `column` is a variable!
+        self.stored = False
+        self.prev = None
 
     def __len__(self): return 1
 
@@ -160,6 +164,7 @@ class Values(Var):
 
         curr = list(self.database.tables[self.table]['indexes'][self.column].keys())
         self.prev = curr
+        self.stored = True
 
         return curr
 
@@ -172,7 +177,8 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
-            self.prev = None # Can never be None!
+            self.stored = False
+            self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -193,6 +199,7 @@ class Numbers:
 
             curr = max(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
+            self.stored = True
 
             return curr
 
@@ -203,7 +210,8 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
-            self.prev = None # Can never be None!
+            self.stored = False
+            self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -224,6 +232,7 @@ class Numbers:
 
             curr = min(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
+            self.stored = True
 
             return curr
 
@@ -234,7 +243,8 @@ class Numbers:
 
             self.column = column
             self.references = {column: '*'}
-            self.prev = None # Can never be None!
+            self.stored = False
+            self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
             self.table = self.table or table
@@ -255,6 +265,7 @@ class Numbers:
 
             curr = sum(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
+            self.stored = True
 
             return curr
 
