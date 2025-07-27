@@ -1,3 +1,7 @@
+from collections import UserList
+
+class Singleton(UserList): ...
+
 class Params:
     def __init__(self, **params):
         for key, value in params.items():
@@ -117,9 +121,23 @@ class Any(Var):
 
         self.values = values
         self.references = {}
-        self.stored = False # Can't Any have a reference too??
+        self.stored = False
+        self.prev = None
 
     def __len__(self): return 1
+
+    def reference(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if not isinstance(self.values, Var):
+            for value in self.values:
+                if isinstance(value, Var):
+                    value.reference(database, table)
+                    self.references.update(value.references)
+        else:
+            self.values.reference(database, table)
+            self.references.update(self.values.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -140,12 +158,18 @@ class Any(Var):
         self.table = self.table or table
         self.database = self.database or database
 
-        if isinstance(self.values, Var):
+        if not isinstance(self.values, Var):
+            values = self.values
+        else:
             self.values.table = self.values.table or self.table
             self.values.database = self.values.database or self.database
-            self.values = self.values.retrieve()
+            values = self.values.compute()
 
-        return self.values
+        curr = Singleton(self.values)
+        self.prev = curr
+        self.stored = True
+
+        return curr
 
 class Values(Var):
     def __init__(self, column, database=None, table=None): # Find better default for column!
