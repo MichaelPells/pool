@@ -41,6 +41,8 @@ class Var:
         else:
             register(field)
 
+        self.reference()
+
         if self.references:
             references = self.database.tables[self.table]['references']
 
@@ -55,10 +57,8 @@ class Var:
                     if index not in references[col][row][column]:
                         references[col][row][column].append(index)
 
-    def reference(self, variable, index):
-        column = variable.compute()
-        self.references.update({column: index})
-        self.references.update(variable.references)
+    def reference(self, database=None, table=None):
+        ...
 
     def retrieve(self, database=None, table=None):
         self.table = self.table or table
@@ -156,15 +156,20 @@ class Values(Var):
 
         self.references = {}
 
-        if not isinstance(self.column, Var):
-            self.references.update({self.column: '*'})
-        else:
-            self.reference(self.column, '*')
-
         self.stored = False
         self.prev = None
 
     def __len__(self): return 1 # Should it really be 1??
+
+    def reference(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if not isinstance(self.column, Var):
+            self.references.update({self.column: ['*']})
+        else:
+            self.column.reference(database, table)
+            self.references.update(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -178,12 +183,14 @@ class Values(Var):
         self.table = self.table or table
         self.database = self.database or database
 
-        if isinstance(self.column, Var):
+        if not isinstance(self.column, Var):
+            column = self.column
+        else:
             self.column.table = self.column.table or self.table
             self.column.database = self.column.database or self.database
-            self.column = self.column.retrieve()
+            column = self.column.compute()
 
-        curr = list(self.database.tables[self.table]['indexes'][self.column].keys())
+        curr = list(self.database.tables[self.table]['indexes'][column].keys())
         self.prev = curr
         self.stored = True
 
@@ -196,11 +203,28 @@ class Field(Var):
 
         self.row = row
         self.column = column
-        self.references = {column: '*'} #*** There will be a problem if `column` is a variable!
+        self.references = {}
         self.stored = False
         self.prev = None
 
     def __len__(self): return 1
+
+    def reference(self, database=None, table=None):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        if not isinstance(self.row, Var) and not isinstance(self.column, Var):
+            key = self.database.tables[self.table]["primarykey"]
+            index = self.database._select(self.table, key, self.row)[0]
+            self.references.update({self.column: [index]})
+        else:
+            if isinstance(self.row, Var):
+                self.row.reference(database, table)
+                self.references.update(self.row.references)
+
+            if isinstance(self.column, Var):
+                self.column.reference(database, table)
+                self.references.update(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -214,21 +238,25 @@ class Field(Var):
         self.table = self.table or table
         self.database = self.database or database
 
-        if isinstance(self.row, Var):
+        if not isinstance(self.row, Var):
+            row = self.row
+        else:
             self.row.table = self.row.table or self.table
             self.row.database = self.row.database or self.database
-            self.row = self.row.retrieve()
+            row = self.row.compute()
 
-        if isinstance(self.column, Var):
+        if not isinstance(self.column, Var):
+            column = self.column
+        else:
             self.column.table = self.column.table or self.table
             self.column.database = self.column.database or self.database
-            self.column = self.column.retrieve()
+            column = self.column.compute()
 
         Table = self.database.tables[self.table]
         key = Table["primarykey"]
-        index = list(Table['indexes'][key][self.row].keys())[0]
+        index = list(Table['indexes'][key][row].keys())[0]
         entry = Table['entries'][index]
-        offset = Table['columns'][self.column]
+        offset = Table['columns'][column]
 
         curr = entry[offset]
         self.prev = curr

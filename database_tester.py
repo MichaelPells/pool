@@ -188,9 +188,21 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 #     print(r)
 # print(result.count)
 
-db.update("Table1", {"id": 200}, record={"phone": Formula(lambda x, y: x - y, x=2, y=4)})
-result = db.read("Table1", {"id": 200})
+# db.update("Table1", {"id": 200}, record={"phone": Formula(lambda x, y: x - y, x=2, y=4)})
+# result = db.read("Table1", {"id": 200})
+# print(result.get(row=0, column="phone").retrieve())
+
+db.update("Table1", {"id": 200}, record={"surname": "phone"})
+
+db.update("Table1", {"id": 300}, record={"phone": Field(200, Field(200, "surname"))})
+result = db.read("Table1", {"id": 300})
 print(result.get(row=0, column="phone").retrieve())
+print(db.tables["Table1"]["references"])
+
+db.update("Table1", {"id": 200}, record={"surname": "gender"})
+result = db.read("Table1", {"id": 300})
+print(result.get(row=0, column="phone").retrieve())
+print(db.tables["Table1"]["references"])
 
 # db.update("Table1", {"id": 200}, record={"phone": Numbers.max("id")})
 # result = db.read("Table1", {"phone": Numbers.max("id")})
