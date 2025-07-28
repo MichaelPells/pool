@@ -29,10 +29,10 @@ class Var:
             prev = self.prev
             field = self.compute()
 
-            if field != prev :
-                del indexes[column][prev][index]
-                if not indexes[column][prev]:
-                    del indexes[column][prev]
+            # if field != prev :
+            #     del indexes[column][prev][index]
+            #     if not indexes[column][prev]:
+            #         del indexes[column][prev]
         else:
            field = self.compute()
 
@@ -60,6 +60,30 @@ class Var:
 
                     if index not in references[col][row][column]:
                         references[col][row][column].append(index)
+
+    def unindex(self, database=None, table=None, params=Params()):
+        self.table = self.table or table
+        self.database = self.database or database
+
+        indexes = params.indexes
+        column = params.column
+        index = params.index
+
+        def unregister(field):
+            del indexes[column][field][index]
+            if not indexes[column][field]:
+                del indexes[column][field]
+
+        field = self.retrieve()
+
+        if type(self) in [
+            Any,
+            Values
+            ]:
+            for value in field:
+                unregister(value)
+        else:
+            unregister(field)
 
     def reference(self, database=None, table=None):
         ...

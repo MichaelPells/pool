@@ -115,6 +115,39 @@ class Database:
                     for col, rs in cols.items():
                         self._buildindex(table, Result(rs, self), [col])
 
+    def _clearindex(self, table, rows=Result(), columns=[]):
+        Table = self.tables[table]
+        columns = {column: Table['columns'][column] for column in columns} or Table['columns']
+        entries = Table['entries']
+        indexes = Table['indexes']
+        references = Table['references']
+
+        rows = rows.rows or Table['entries'].keys()
+
+        for index in rows:
+            for column, offset in columns.items():
+                row = entries[index]
+                field = row[offset]
+
+                if not isinstance(field, Var):
+                    del Table['indexes'][column][field][index]
+                    if not Table['indexes'][column][field]:
+                        del Table['indexes'][column][field]
+                else:
+                    field.unindex(self, table, Params(indexes=indexes, column=column, index=index))
+
+                # Clear index of its dependent variables in references
+                if index in references[column]:
+                    cols = references[column][index]
+
+                    for col, rs in cols.items():
+                        self._clearindex(table, Result(rs, self), [col])
+
+                if '*' in references[column]:
+                    cols = references[column]['*']
+
+                    for col, rs in cols.items():
+                        self._clearindex(table, Result(rs, self), [col])
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]
@@ -216,19 +249,14 @@ class Database:
             else:
                 rows = self._selector(table, rows)
     
-            columns = {}
+            columns = {column: Table['columns'][column] for column in record}
+
+            self._clearindex(table, Result(rows, self), columns)
 
             for column, value in record.items():
                 offset = Table['columns'][column]
-                columns[column] = offset
 
                 for index in rows:
-                    field = Table['entries'][index][offset]
-
-                    del Table['indexes'][column][field][index]
-                    if not Table['indexes'][column][field]:
-                        del Table['indexes'][column][field]
-
                     Table['entries'][index][offset] = value
 
             self._buildindex(table, Result(rows, self), columns)
@@ -260,14 +288,9 @@ class Database:
             else:
                 rows = self._selector(table, rows)
 
+            self._clearindex(table, Result(rows, self))
+
             for index in rows:
-                for column, offset in Table['columns'].items():
-                    field = Table['entries'][index][offset]
-
-                    del Table['indexes'][column][field][index]
-                    if not Table['indexes'][column][field]:
-                        del Table['indexes'][column][field]
-
                 del Table['entries'][index]
 
             Table['count'] -= len(rows)
