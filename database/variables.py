@@ -20,31 +20,33 @@ class Var:
         index = params.index
 
         def register(field):
-            if field not in indexes[column]:
-                indexes[column][field] = {}
+            if type(field) != Singleton:
+                if field not in indexes[column]:
+                    indexes[column][field] = {}
 
-            indexes[column][field][index] = index
+                indexes[column][field][index] = index
+            else:
+                for value in field:
+                    if isinstance(value, Var):
+                        value = value.compute(self.database, self.table)
 
-        if self.stored:
-            prev = self.prev
-            field = self.compute()
+                    register(value)
 
-            # if field != prev :
-            #     del indexes[column][prev][index]
-            #     if not indexes[column][prev]:
-            #         del indexes[column][prev]
-        else:
-           field = self.compute()
+        # if self.stored:
+        #     prev = self.prev
+        #     field = self.compute()
 
-        if type(self) in [
-            Any,
-            Values
-            ]:
-            for value in field:
-                register(value)
-        else:
-            register(field)
+        #     if field != prev :
+        #         del indexes[column][prev][index]
+        #         if not indexes[column][prev]:
+        #             del indexes[column][prev]
+        # else:
+        #    field = self.compute()
 
+        field = self.compute()
+
+        register(field)
+        
         self.reference()
 
         if self.references:
@@ -70,20 +72,20 @@ class Var:
         index = params.index
 
         def unregister(field):
-            del indexes[column][field][index]
-            if not indexes[column][field]:
-                del indexes[column][field]
+            if type(field) != Singleton:
+                del indexes[column][field][index]
+                if not indexes[column][field]:
+                    del indexes[column][field]
+            else:
+                for value in field:
+                    if isinstance(value, Var):
+                        value = value.compute(self.database, self.table)
+
+                    unregister(value)
 
         field = self.retrieve()
 
-        if type(self) in [
-            Any,
-            Values
-            ]:
-            for value in field:
-                unregister(value)
-        else:
-            unregister(field)
+        unregister(field)
 
     def reference(self, database=None, table=None):
         ...
@@ -157,10 +159,10 @@ class Any(Var):
         if not isinstance(self.values, Var):
             for value in self.values:
                 if isinstance(value, Var):
-                    value.reference(database, table)
+                    value.reference(self.database, self.table)
                     self.references.update(value.references)
         else:
-            self.values.reference(database, table)
+            self.values.reference(self.database, self.table)
             self.references.update(self.values.references)
 
     def process(self, database=None, table=None, params=Params()):
@@ -216,7 +218,7 @@ class Values(Var):
         if not isinstance(self.column, Var):
             self.references.update({self.column: ['*']})
         else:
-            self.column.reference(database, table)
+            self.column.reference(self.database, self.table)
             self.references.update(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
@@ -261,17 +263,33 @@ class Field(Var):
         self.table = self.table or table
         self.database = self.database or database
 
+        self.references = {}
+
         if not isinstance(self.row, Var) and not isinstance(self.column, Var):
             key = self.database.tables[self.table]["primarykey"]
             index = self.database._select(self.table, key, self.row)[0]
             self.references.update({self.column: [index]})
         else:
+            if not isinstance(self.row, Var):
+                row = self.row
+            else:
+                row = self.row.compute(self.database, self.table)
+
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
+
+            key = self.database.tables[self.table]["primarykey"]
+            index = self.database._select(self.table, key, row)[0]
+            self.references.update({column: [index]})
+
             if isinstance(self.row, Var):
-                self.row.reference(database, table)
+                self.row.reference(self.database, self.table)
                 self.references.update(self.row.references)
 
             if isinstance(self.column, Var):
-                self.column.reference(database, table)
+                self.column.reference(self.database, self.table)
                 self.references.update(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):

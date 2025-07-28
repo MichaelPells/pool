@@ -194,14 +194,15 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 
 db.update("Table1", {"id": 200}, record={"surname": "phone"})
 
-db.update("Table1", {"id": 300}, record={"phone": Field(200, Field(200, "surname"))})
-result = db.read("Table1", {"id": 300})
-print(result.get(row=0, column="phone").retrieve())
+db.update("Table1", {"id": 300}, record={"phone": Any(["Hello", Field(200, Field(200, "surname"))])})
+result = db.read("Table1", {"phone": 8140147440})
+print(result.get(column="id"))
 print(db.tables["Table1"]["references"])
 
-db.update("Table1", {"id": 200}, record={"surname": "gender"})
-result = db.read("Table1", {"id": 300})
-print(result.get(row=0, column="phone").retrieve())
+db.update("Table1", {"id": 200}, record={"phone": "Hi"})
+result = db.read("Table1", {"phone": "Hi"})
+print(len(result))
+print(result.get(column="id"))
 print(db.tables["Table1"]["references"])
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
