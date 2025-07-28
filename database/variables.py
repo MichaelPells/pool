@@ -185,13 +185,17 @@ class Any(Var):
         self.database = self.database or database
 
         if not isinstance(self.values, Var):
-            values = self.values
+            values = []
+            for value in self.values:
+                if isinstance(value, Var): # Should deep computations be done at this stage?
+                    value = value.compute(self.database, self.table)
+                values.append(value)
         else:
             self.values.table = self.values.table or self.table
             self.values.database = self.values.database or self.database
             values = self.values.compute()
 
-        curr = Singleton(self.values)
+        curr = Singleton(values)
         self.prev = curr
         self.stored = True
 
@@ -273,12 +277,12 @@ class Field(Var):
             if not isinstance(self.row, Var):
                 row = self.row
             else:
-                row = self.row.compute(self.database, self.table)
+                row = self.row.retrieve()
 
             if not isinstance(self.column, Var):
                 column = self.column
             else:
-                column = self.column.compute(self.database, self.table)
+                column = self.column.retrieve()
 
             key = self.database.tables[self.table]["primarykey"]
             index = self.database._select(self.table, key, row)[0]

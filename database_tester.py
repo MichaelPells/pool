@@ -202,7 +202,7 @@ print(db.tables["Table1"]["references"])
 db.update("Table1", {"id": 200}, record={"phone": "Hi"})
 result = db.read("Table1", {"phone": "Hi"})
 print(len(result))
-print(result.get(column="id"))
+print(result.get(column="phone")[1].compute())
 print(db.tables["Table1"]["references"])
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
