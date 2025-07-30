@@ -332,13 +332,13 @@ class Field(Var):
         return curr
 
 class Formula(Var):
-    def __init__(self, function, database=None, table=None, **parameters): # Find better default for column!
+    def __init__(self, function, database=None, table=None, **parameters):
         self.table = table
         self.database = database
 
         self.function = function
         self.parameters = parameters
-        self.references = {} #*** There will be a problem if `column` is a variable!
+        self.references = {}
         self.stored = False
         self.prev = None
 
