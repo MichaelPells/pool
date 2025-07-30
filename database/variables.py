@@ -27,9 +27,6 @@ class Var:
                 indexes[column][field][index] = index
             else:
                 for value in field:
-                    if isinstance(value, Var):
-                        value = value.compute(self.database, self.table)
-
                     register(value)
 
         # if self.stored:
@@ -187,7 +184,7 @@ class Any(Var):
         if not isinstance(self.values, Var):
             values = []
             for value in self.values:
-                if isinstance(value, Var): # Should deep computations be done at this stage?
+                if isinstance(value, Var):
                     value = value.compute(self.database, self.table)
                 values.append(value)
         else:
