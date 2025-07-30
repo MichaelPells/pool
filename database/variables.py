@@ -153,6 +153,8 @@ class Any(Var):
         self.table = self.table or table
         self.database = self.database or database
 
+        self.references = {}
+
         if not isinstance(self.values, Var):
             for value in self.values:
                 if isinstance(value, Var):
