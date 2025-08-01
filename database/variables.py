@@ -199,9 +199,7 @@ class Any(Var):
                     value = value.compute(self.database, self.table)
                 values.append(value)
         else:
-            self.values.table = self.values.table or self.table
-            self.values.database = self.values.database or self.database
-            values = self.values.compute()
+            values = self.values.compute(self.database, self.table)
 
         curr = Singleton(values)
         self.prev = curr
@@ -248,9 +246,7 @@ class Values(Var):
         if not isinstance(self.column, Var):
             column = self.column
         else:
-            self.column.table = self.column.table or self.table
-            self.column.database = self.column.database or self.database
-            column = self.column.compute()
+            column = self.column.compute(self.database, self.table)
 
         curr = list(self.database.tables[self.table]['indexes'][column].keys())
         self.prev = curr
@@ -319,16 +315,12 @@ class Field(Var):
         if not isinstance(self.row, Var):
             row = self.row
         else:
-            self.row.table = self.row.table or self.table
-            self.row.database = self.row.database or self.database
-            row = self.row.compute()
+            row = self.row.compute(self.database, self.table)
 
         if not isinstance(self.column, Var):
             column = self.column
         else:
-            self.column.table = self.column.table or self.table
-            self.column.database = self.column.database or self.database
-            column = self.column.compute()
+            column = self.column.compute(self.database, self.table)
 
         Table = self.database.tables[self.table]
         key = Table['primarykey']
@@ -368,9 +360,7 @@ class Formula(Var):
         self.database = self.database or database
 
         if isinstance(self.function, Var):
-            self.function.table = self.function.table or self.table
-            self.function.database = self.function.database or self.database
-            self.function = self.function.retrieve()
+            self.function = self.function.retrieve(self.database, self.table)
 
         # Do above for `parameters`
 
@@ -405,9 +395,7 @@ class Numbers:
             self.database = self.database or database
             
             if isinstance(self.column, Var):
-                self.column.table = self.column.table or self.table
-                self.column.database = self.column.database or self.database
-                self.column = self.column.retrieve()
+                self.column = self.column.retrieve(self.database, self.table)
 
             curr = max(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
@@ -438,9 +426,7 @@ class Numbers:
             self.database = self.database or database
             
             if isinstance(self.column, Var):
-                self.column.table = self.column.table or self.table
-                self.column.database = self.column.database or self.database
-                self.column = self.column.retrieve()
+                self.column = self.column.retrieve(self.database, self.table)
 
             curr = min(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
@@ -471,9 +457,7 @@ class Numbers:
             self.database = self.database or database
             
             if isinstance(self.column, Var):
-                self.column.table = self.column.table or self.table
-                self.column.database = self.column.database or self.database
-                self.column = self.column.retrieve()
+                self.column = self.column.retrieve(self.database, self.table)
 
             curr = sum(self.database.tables[self.table]['indexes'][self.column])
             self.prev = curr
