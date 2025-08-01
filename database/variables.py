@@ -117,7 +117,7 @@ class Escape(Var, Const):
 
     def __len__(self): return 1
     
-    def compute(self):
+    def compute(self, database=None, table=None):
         return self.variable
 
 class Null(Var):
@@ -143,7 +143,7 @@ class Null(Var):
 
         return self.database._select(self.table, column, self.retrieve())
     
-    def compute(self):
+    def compute(self, database=None, table=None):
         return self.value
 
 class Any(Var):
@@ -219,11 +219,13 @@ class Values(Var):
         self.stored = False
         self.prev = None
 
-    def __len__(self): return 1 # Should it really be 1??
+    def __len__(self): return len(self.retrieve())
 
     def reference(self, database=None, table=None):
         self.database = self.database or database
         self.table = self.table or table
+
+        self.references = {}
 
         if not isinstance(self.column, Var):
             self._updatereferences({self.column: ['*']})
@@ -264,8 +266,6 @@ class Field(Var):
         self.references = {}
         self.stored = False
         self.prev = None
-
-    def __len__(self): return 1
 
     def reference(self, database=None, table=None):
         self.database = self.database or database
@@ -345,7 +345,20 @@ class Formula(Var):
         self.stored = False
         self.prev = None
 
-    def __len__(self): return 1 # Should it really be 1??
+    def reference(self, database=None, table=None):
+        self.database = self.database or database
+        self.table = self.table or table
+
+        self.references = {}
+
+        if isinstance(self.function, Var):
+            self.function.reference(self.database, self.table)
+            self._updatereferences(self.function.references)
+
+        for parameter in self.parameters.values():
+            if isinstance(parameter, Var):
+                parameter.reference(self.database, self.table)
+                self._updatereferences(parameter.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.database = self.database or database
@@ -359,12 +372,18 @@ class Formula(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        if isinstance(self.function, Var):
-            self.function = self.function.retrieve(self.database, self.table)
+        if not isinstance(self.function, Var):
+            function = self.function
+        else:
+            function = self.function.retrieve(self.database, self.table)
 
-        # Do above for `parameters`
+        parameters = self.parameters
 
-        curr = self.function(**self.parameters)
+        for param, value in self.parameters.items():
+            if isinstance(value, Var):
+                parameters[param] = value.compute(self.database, self.table)
+
+        curr = function(**parameters)
         self.prev = curr
         self.stored = True
 
