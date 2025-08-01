@@ -87,6 +87,15 @@ class Var:
     def reference(self, database=None, table=None):
         ...
 
+    def _updatereferences(self, references={}):
+        for column, indexes in references.items():
+            if column not in self.references:
+                self.references[column] = []
+
+            for index in indexes:
+                if index not in self.references[column]:
+                    self.references[column].append(index)
+
     def retrieve(self, database=None, table=None):
         self.table = self.table or table
         self.database = self.database or database
@@ -159,10 +168,10 @@ class Any(Var):
             for value in self.values:
                 if isinstance(value, Var):
                     value.reference(self.database, self.table)
-                    self.references.update(value.references)
+                    self._updatereferences(value.references)
         else:
             self.values.reference(self.database, self.table)
-            self.references.update(self.values.references)
+            self._updatereferences(self.values.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -219,10 +228,10 @@ class Values(Var):
         self.database = self.database or database
 
         if not isinstance(self.column, Var):
-            self.references.update({self.column: ['*']})
+            self._updatereferences({self.column: ['*']})
         else:
             self.column.reference(self.database, self.table)
-            self.references.update(self.column.references)
+            self._updatereferences(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -269,31 +278,31 @@ class Field(Var):
         self.references = {}
 
         if not isinstance(self.row, Var) and not isinstance(self.column, Var):
-            key = self.database.tables[self.table]["primarykey"]
+            key = self.database.tables[self.table]['primarykey']
             index = self.database._select(self.table, key, self.row)[0]
-            self.references.update({self.column: [index]})
+            self._updatereferences({self.column: [index]})
         else:
             if not isinstance(self.row, Var):
                 row = self.row
             else:
-                row = self.row.retrieve()
+                row = self.row.retrieve(self.database, self.table)
 
             if not isinstance(self.column, Var):
                 column = self.column
             else:
-                column = self.column.retrieve()
+                column = self.column.retrieve(self.database, self.table)
 
-            key = self.database.tables[self.table]["primarykey"]
+            key = self.database.tables[self.table]['primarykey']
             index = self.database._select(self.table, key, row)[0]
-            self.references.update({column: [index]})
+            self._updatereferences({column: [index]})
 
             if isinstance(self.row, Var):
                 self.row.reference(self.database, self.table)
-                self.references.update(self.row.references)
+                self._updatereferences(self.row.references)
 
             if isinstance(self.column, Var):
                 self.column.reference(self.database, self.table)
-                self.references.update(self.column.references)
+                self._updatereferences(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
         self.table = self.table or table
@@ -322,7 +331,7 @@ class Field(Var):
             column = self.column.compute()
 
         Table = self.database.tables[self.table]
-        key = Table["primarykey"]
+        key = Table['primarykey']
         index = list(Table['indexes'][key][row].keys())[0]
         entry = Table['entries'][index]
         offset = Table['columns'][column]
