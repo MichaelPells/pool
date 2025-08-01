@@ -192,18 +192,14 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # result = db.read("Table1", {"id": 200})
 # print(result.get(row=0, column="phone").retrieve())
 
-db.update("Table1", {"id": 200}, record={"surname": "phone"})
+db.update("Table1", {"id": 100}, record={"phone": lambda x: x ** 2})
 
-db.update("Table1", {"id": 300}, record={"phone": Any(["Hello", Field(200, Field(200, "surname"))])})
-result = db.read("Table1", {"phone": 8140147440})
-print(result.get(column="id"))
+db.update("Table1", {"id": 300}, record={"phone": Formula(Field(100, "phone"), x=Field(100, "id"))})
+
 print(db.tables["Table1"]["references"])
 
-db.update("Table1", {"id": 200}, record={"phone": "Hi"})
-result = db.read("Table1", {"phone": "Hi"})
-print(len(result))
-print(result.get(column="phone")[1].compute())
-print(db.tables["Table1"]["references"])
+result = db.read("Table1", {"id": 300})
+print(result.get(row=0, column="phone").retrieve())
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
 

@@ -375,7 +375,7 @@ class Formula(Var):
         else:
             function = self.function.retrieve(self.database, self.table)
 
-        parameters = self.parameters
+        parameters = dict(self.parameters)
 
         for param, value in self.parameters.items():
             if isinstance(value, Var):
