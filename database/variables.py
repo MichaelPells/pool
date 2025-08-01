@@ -12,8 +12,8 @@ class Const: ...
 
 class Var:
     def index(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         indexes = params.indexes
         column = params.column
@@ -61,8 +61,8 @@ class Var:
                         references[col][row][column].append(index)
 
     def unindex(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         indexes = params.indexes
         column = params.column
@@ -97,8 +97,8 @@ class Var:
                     self.references[column].append(index)
 
     def retrieve(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if self.stored:
             return self.prev
@@ -108,8 +108,8 @@ class Var:
 
 class Escape(Var, Const):
     def __init__(self, variable):
-        self.table = None
         self.database = None
+        self.table = None
 
         self.variable = variable
         self.references = {}
@@ -126,8 +126,8 @@ class Null(Var):
     NULL = null()
 
     def __init__(self):
-        self.table = None
         self.database = None
+        self.table = None
 
         self.value = Null.NULL
         self.references = {}
@@ -136,8 +136,8 @@ class Null(Var):
     def __len__(self): return 0
 
     def process(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         column = params.column
 
@@ -148,8 +148,8 @@ class Null(Var):
 
 class Any(Var):
     def __init__(self, values: list, database=None, table=None):
-        self.table = table
         self.database = database
+        self.table = table
 
         self.values = values
         self.references = {}
@@ -159,8 +159,8 @@ class Any(Var):
     def __len__(self): return 1
 
     def reference(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         self.references = {}
 
@@ -174,8 +174,8 @@ class Any(Var):
             self._updatereferences(self.values.references)
 
     def process(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         column = params.column
 
@@ -189,8 +189,8 @@ class Any(Var):
         return list(set(results[0]).union(*results[1:]))
     
     def compute(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if not isinstance(self.values, Var):
             values = []
@@ -209,8 +209,8 @@ class Any(Var):
 
 class Values(Var):
     def __init__(self, column, database=None, table=None): # Find better default for column!
-        self.table = table
         self.database = database
+        self.table = table
 
         self.column = column
 
@@ -222,8 +222,8 @@ class Values(Var):
     def __len__(self): return 1 # Should it really be 1??
 
     def reference(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if not isinstance(self.column, Var):
             self._updatereferences({self.column: ['*']})
@@ -232,16 +232,16 @@ class Values(Var):
             self._updatereferences(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         column = params.column
 
         return database._select(self.table, column, self.retrieve()) # Check for similar here instead!
     
     def compute(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if not isinstance(self.column, Var):
             column = self.column
@@ -256,8 +256,8 @@ class Values(Var):
     
 class Field(Var):
     def __init__(self, row, column, database=None, table=None): # Find better default for column!
-        self.table = table
         self.database = database
+        self.table = table
 
         self.row = row
         self.column = column
@@ -268,8 +268,8 @@ class Field(Var):
     def __len__(self): return 1
 
     def reference(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         self.references = {}
 
@@ -301,16 +301,16 @@ class Field(Var):
                 self._updatereferences(self.column.references)
 
     def process(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         column = params.column
 
         return database._select(self.table, column, self.retrieve())
     
     def compute(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if not isinstance(self.row, Var):
             row = self.row
@@ -336,8 +336,8 @@ class Field(Var):
 
 class Formula(Var):
     def __init__(self, function, database=None, table=None, **parameters):
-        self.table = table
         self.database = database
+        self.table = table
 
         self.function = function
         self.parameters = parameters
@@ -348,16 +348,16 @@ class Formula(Var):
     def __len__(self): return 1 # Should it really be 1??
 
     def process(self, database=None, table=None, params=Params()):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         column = params.column
 
         return database._select(self.table, column, self.retrieve()) # Check for similar here instead!
     
     def compute(self, database=None, table=None):
-        self.table = self.table or table
         self.database = self.database or database
+        self.table = self.table or table
 
         if isinstance(self.function, Var):
             self.function = self.function.retrieve(self.database, self.table)
@@ -374,8 +374,8 @@ class Formula(Var):
 class Numbers:
     class max(Var):
         def __init__(self, column, database=None, table=None):
-            self.table = table
             self.database = database
+            self.table = table
 
             self.column = column
             self.references = {column: '*'}
@@ -383,16 +383,16 @@ class Numbers:
             self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
 
             column = params.column
 
             return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
             
             if isinstance(self.column, Var):
                 self.column = self.column.retrieve(self.database, self.table)
@@ -405,8 +405,8 @@ class Numbers:
 
     class min(Var):
         def __init__(self, column, database=None, table=None):
-            self.table = table
             self.database = database
+            self.table = table
 
             self.column = column
             self.references = {column: '*'}
@@ -414,16 +414,16 @@ class Numbers:
             self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
 
             column = params.column
 
             return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
             
             if isinstance(self.column, Var):
                 self.column = self.column.retrieve(self.database, self.table)
@@ -436,8 +436,8 @@ class Numbers:
 
     class sum(Var):
         def __init__(self, column, database=None, table=None):
-            self.table = table
             self.database = database
+            self.table = table
 
             self.column = column
             self.references = {column: '*'}
@@ -445,16 +445,16 @@ class Numbers:
             self.prev = None
 
         def process(self, database=None, table=None, params=Params()):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
 
             column = params.column
 
             return database._select(self.table, column, self.retrieve())
 
         def compute(self, database=None, table=None):
-            self.table = self.table or table
             self.database = self.database or database
+            self.table = self.table or table
             
             if isinstance(self.column, Var):
                 self.column = self.column.retrieve(self.database, self.table)
