@@ -213,9 +213,7 @@ class Values(Var):
         self.table = table
 
         self.column = column
-
         self.references = {}
-
         self.stored = False
         self.prev = None
 
@@ -397,9 +395,21 @@ class Numbers:
             self.table = table
 
             self.column = column
-            self.references = {column: '*'}
+            self.references = {}
             self.stored = False
             self.prev = None
+
+        def reference(self, database=None, table=None):
+            self.database = self.database or database
+            self.table = self.table or table
+
+            self.references = {}
+
+            if not isinstance(self.column, Var):
+                self._updatereferences({self.column: ['*']})
+            else:
+                self.column.reference(self.database, self.table)
+                self._updatereferences(self.column.references)
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
@@ -413,10 +423,12 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
             
-            if isinstance(self.column, Var):
-                self.column = self.column.retrieve(self.database, self.table)
-
-            curr = max(self.database.tables[self.table]['indexes'][self.column])
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
+        
+            curr = max(self.database.tables[self.table]['indexes'][column])
             self.prev = curr
             self.stored = True
 
@@ -428,9 +440,21 @@ class Numbers:
             self.table = table
 
             self.column = column
-            self.references = {column: '*'}
+            self.references = {}
             self.stored = False
             self.prev = None
+
+        def reference(self, database=None, table=None):
+            self.database = self.database or database
+            self.table = self.table or table
+
+            self.references = {}
+
+            if not isinstance(self.column, Var):
+                self._updatereferences({self.column: ['*']})
+            else:
+                self.column.reference(self.database, self.table)
+                self._updatereferences(self.column.references)
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
@@ -444,10 +468,12 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
             
-            if isinstance(self.column, Var):
-                self.column = self.column.retrieve(self.database, self.table)
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
 
-            curr = min(self.database.tables[self.table]['indexes'][self.column])
+            curr = min(self.database.tables[self.table]['indexes'][column])
             self.prev = curr
             self.stored = True
 
@@ -459,9 +485,21 @@ class Numbers:
             self.table = table
 
             self.column = column
-            self.references = {column: '*'}
+            self.references = {}
             self.stored = False
             self.prev = None
+
+        def reference(self, database=None, table=None):
+            self.database = self.database or database
+            self.table = self.table or table
+
+            self.references = {}
+
+            if not isinstance(self.column, Var):
+                self._updatereferences({self.column: ['*']})
+            else:
+                self.column.reference(self.database, self.table)
+                self._updatereferences(self.column.references)
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
@@ -475,10 +513,12 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
             
-            if isinstance(self.column, Var):
-                self.column = self.column.retrieve(self.database, self.table)
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
 
-            curr = sum(self.database.tables[self.table]['indexes'][self.column])
+            curr = sum(self.database.tables[self.table]['indexes'][column])
             self.prev = curr
             self.stored = True
 
