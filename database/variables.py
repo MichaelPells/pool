@@ -333,12 +333,13 @@ class Field(Var):
         return curr
 
 class Formula(Var):
-    def __init__(self, function, database=None, table=None, **parameters):
+    def __init__(self, function, *orderedparameters, database=None, table=None, **namedparameters):
         self.database = database
         self.table = table
 
         self.function = function
-        self.parameters = parameters
+        self.orderedparameters = orderedparameters
+        self.namedparameters = namedparameters
         self.references = {}
         self.stored = False
         self.prev = None
@@ -353,7 +354,12 @@ class Formula(Var):
             self.function.reference(self.database, self.table)
             self._updatereferences(self.function.references)
 
-        for parameter in self.parameters.values():
+        for parameter in self.orderedparameters:
+            if isinstance(parameter, Var):
+                parameter.reference(self.database, self.table)
+                self._updatereferences(parameter.references)
+
+        for parameter in self.namedparameters.values():
             if isinstance(parameter, Var):
                 parameter.reference(self.database, self.table)
                 self._updatereferences(parameter.references)
@@ -375,13 +381,19 @@ class Formula(Var):
         else:
             function = self.function.retrieve(self.database, self.table)
 
-        parameters = dict(self.parameters)
+        orderedparameters = list(self.orderedparameters)
 
-        for param, value in self.parameters.items():
+        for n, value in enumerate(self.orderedparameters):
             if isinstance(value, Var):
-                parameters[param] = value.compute(self.database, self.table)
+                orderedparameters[n] = value.compute(self.database, self.table)
 
-        curr = function(**parameters)
+        namedparameters = dict(self.namedparameters)
+
+        for param, value in self.namedparameters.items():
+            if isinstance(value, Var):
+                namedparameters[param] = value.compute(self.database, self.table)
+
+        curr = function(*orderedparameters, **namedparameters)
         self.prev = curr
         self.stored = True
 

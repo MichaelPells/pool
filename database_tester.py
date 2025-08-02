@@ -192,9 +192,9 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # result = db.read("Table1", {"id": 200})
 # print(result.get(row=0, column="phone").retrieve())
 
-db.update("Table1", {"id": 100}, record={"phone": lambda x: x ** 2})
+db.update("Table1", {"id": 100}, record={"phone": lambda x, y: x ** y})
 
-db.update("Table1", {"id": 300}, record={"phone": Formula(Field(100, "phone"), x=Field(100, "id"))})
+db.update("Table1", {"id": 300}, record={"phone": Formula(Field(100, "phone"), x=2, y=5, table="Table1", database=db)})
 
 print(db.tables["Table1"]["references"])
 
