@@ -194,7 +194,7 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 
 db.update("Table1", {"id": 100}, record={"phone": "Hello"})
 
-db.update("Table1", {"id": 300}, record={"phone": Formula(all, iterable=Field(100, "phone"))})
+db.update("Table1", {"id": 300}, record={"phone": Formula(all, Field(100, "phone"))})
 
 print(db.tables["Table1"]["references"])
 
