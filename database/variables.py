@@ -162,6 +162,7 @@ class Any(Var):
 
         self.values = values
         self.references = {}
+        self.referenced = False
         self.stored = False
         self.prev = None
 
@@ -224,6 +225,7 @@ class Values(Var):
 
         self.column = column
         self.references = {}
+        self.referenced = False
         self.stored = False
         self.prev = None
 
@@ -354,6 +356,7 @@ class Formula(Var):
         self.orderedparameters = orderedparameters
         self.namedparameters = namedparameters
         self.references = {}
+        self.referenced = False
         self.stored = False
         self.prev = None
 
@@ -422,6 +425,7 @@ class Numbers:
 
             self.column = column
             self.references = {}
+            self.referenced = False
             self.stored = False
             self.prev = None
 
@@ -468,6 +472,7 @@ class Numbers:
 
             self.column = column
             self.references = {}
+            self.referenced = False
             self.stored = False
             self.prev = None
 
@@ -514,6 +519,7 @@ class Numbers:
 
             self.column = column
             self.references = {}
+            self.referenced = False
             self.stored = False
             self.prev = None
 
