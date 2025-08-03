@@ -44,7 +44,7 @@ class Var:
 
         register(field)
         
-        self.reference()
+        self._clearreference(), self.reference()
 
         if self.references:
             references = self.database.tables[self.table]['references']
@@ -86,6 +86,15 @@ class Var:
 
     def reference(self, database=None, table=None):
         ...
+
+    def _clearreference(self):
+        self.references = {}
+
+        try:
+            self.referenced
+            self.referenced = False
+        except AttributeError:
+            pass
 
     def _updatereferences(self, references={}):
         for column, indexes in references.items():
@@ -262,6 +271,7 @@ class Field(Var):
         self.row = row
         self.column = column
         self.references = {}
+        self.referenced = False
         self.stored = False
         self.prev = None
 
@@ -269,34 +279,35 @@ class Field(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        self.references = {}
-
-        if not isinstance(self.row, Var) and not isinstance(self.column, Var):
-            key = self.database.tables[self.table]['primarykey']
-            index = self.database._select(self.table, key, self.row)[0]
-            self._updatereferences({self.column: [index]})
-        else:
-            if not isinstance(self.row, Var):
-                row = self.row
+        if not self.referenced:
+            if not isinstance(self.row, Var) and not isinstance(self.column, Var):
+                key = self.database.tables[self.table]['primarykey']
+                index = self.database._select(self.table, key, self.row)[0]
+                self._updatereferences({self.column: [index]})
             else:
-                row = self.row.retrieve(self.database, self.table)
+                if not isinstance(self.row, Var):
+                    row = self.row
+                else:
+                    row = self.row.retrieve(self.database, self.table)
 
-            if not isinstance(self.column, Var):
-                column = self.column
-            else:
-                column = self.column.retrieve(self.database, self.table)
+                if not isinstance(self.column, Var):
+                    column = self.column
+                else:
+                    column = self.column.retrieve(self.database, self.table)
 
-            key = self.database.tables[self.table]['primarykey']
-            index = self.database._select(self.table, key, row)[0]
-            self._updatereferences({column: [index]})
+                key = self.database.tables[self.table]['primarykey']
+                index = self.database._select(self.table, key, row)[0]
+                self._updatereferences({column: [index]})
 
-            if isinstance(self.row, Var):
-                self.row.reference(self.database, self.table)
-                self._updatereferences(self.row.references)
+                if isinstance(self.row, Var):
+                    self.row.reference(self.database, self.table)
+                    self._updatereferences(self.row.references)
 
-            if isinstance(self.column, Var):
-                self.column.reference(self.database, self.table)
-                self._updatereferences(self.column.references)
+                if isinstance(self.column, Var):
+                    self.column.reference(self.database, self.table)
+                    self._updatereferences(self.column.references)
+
+            self.referenced = True
 
     def process(self, database=None, table=None, params=Params()):
         self.database = self.database or database
