@@ -171,16 +171,17 @@ class Any(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        self.references = {}
+        if not self.referenced:
+            if not isinstance(self.values, Var):
+                for value in self.values:
+                    if isinstance(value, Var):
+                        value.reference(self.database, self.table)
+                        self._updatereferences(value.references)
+            else:
+                self.values.reference(self.database, self.table)
+                self._updatereferences(self.values.references)
 
-        if not isinstance(self.values, Var):
-            for value in self.values:
-                if isinstance(value, Var):
-                    value.reference(self.database, self.table)
-                    self._updatereferences(value.references)
-        else:
-            self.values.reference(self.database, self.table)
-            self._updatereferences(self.values.references)
+            self.referenced = True
 
     def process(self, database=None, table=None, params=Params()):
         self.database = self.database or database
@@ -232,13 +233,14 @@ class Values(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        self.references = {}
+        if not self.referenced:
+            if not isinstance(self.column, Var):
+                self._updatereferences({self.column: ['*']})
+            else:
+                self.column.reference(self.database, self.table)
+                self._updatereferences(self.column.references)
 
-        if not isinstance(self.column, Var):
-            self._updatereferences({self.column: ['*']})
-        else:
-            self.column.reference(self.database, self.table)
-            self._updatereferences(self.column.references)
+            self.referenced = True
 
     def process(self, database=None, table=None, params=Params()):
         self.database = self.database or database
@@ -359,21 +361,22 @@ class Formula(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        self.references = {}
+        if not self.referenced:
+            if isinstance(self.function, Var):
+                self.function.reference(self.database, self.table)
+                self._updatereferences(self.function.references)
 
-        if isinstance(self.function, Var):
-            self.function.reference(self.database, self.table)
-            self._updatereferences(self.function.references)
+            for parameter in self.orderedparameters:
+                if isinstance(parameter, Var):
+                    parameter.reference(self.database, self.table)
+                    self._updatereferences(parameter.references)
 
-        for parameter in self.orderedparameters:
-            if isinstance(parameter, Var):
-                parameter.reference(self.database, self.table)
-                self._updatereferences(parameter.references)
+            for parameter in self.namedparameters.values():
+                if isinstance(parameter, Var):
+                    parameter.reference(self.database, self.table)
+                    self._updatereferences(parameter.references)
 
-        for parameter in self.namedparameters.values():
-            if isinstance(parameter, Var):
-                parameter.reference(self.database, self.table)
-                self._updatereferences(parameter.references)
+            self.referenced = True
 
     def process(self, database=None, table=None, params=Params()):
         self.database = self.database or database
@@ -426,13 +429,14 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
 
-            self.references = {}
+            if not self.referenced:
+                if not isinstance(self.column, Var):
+                    self._updatereferences({self.column: ['*']})
+                else:
+                    self.column.reference(self.database, self.table)
+                    self._updatereferences(self.column.references)
 
-            if not isinstance(self.column, Var):
-                self._updatereferences({self.column: ['*']})
-            else:
-                self.column.reference(self.database, self.table)
-                self._updatereferences(self.column.references)
+                self.referenced = True
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
@@ -471,13 +475,14 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
 
-            self.references = {}
+            if not self.referenced:
+                if not isinstance(self.column, Var):
+                    self._updatereferences({self.column: ['*']})
+                else:
+                    self.column.reference(self.database, self.table)
+                    self._updatereferences(self.column.references)
 
-            if not isinstance(self.column, Var):
-                self._updatereferences({self.column: ['*']})
-            else:
-                self.column.reference(self.database, self.table)
-                self._updatereferences(self.column.references)
+                self.referenced = True
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
@@ -516,13 +521,14 @@ class Numbers:
             self.database = self.database or database
             self.table = self.table or table
 
-            self.references = {}
+            if not self.referenced:
+                if not isinstance(self.column, Var):
+                    self._updatereferences({self.column: ['*']})
+                else:
+                    self.column.reference(self.database, self.table)
+                    self._updatereferences(self.column.references)
 
-            if not isinstance(self.column, Var):
-                self._updatereferences({self.column: ['*']})
-            else:
-                self.column.reference(self.database, self.table)
-                self._updatereferences(self.column.references)
+                self.referenced = True
 
         def process(self, database=None, table=None, params=Params()):
             self.database = self.database or database
