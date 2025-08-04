@@ -2,13 +2,14 @@ class Idiom: ...
 
 
 class This(Idiom):
-    def __init__(self, function):
+    def __init__(self, function, column=None):
         self.function = function
+        self.column = column
 
     def decode(self, data):
         Table = data["Table"]
         index = data["index"]
-        offset = data["offset"]
+        offset = Table['columns'][self.column] if self.column else data["offset"]
 
         value = Table['entries'][index][offset]
 
