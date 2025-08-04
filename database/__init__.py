@@ -1,6 +1,7 @@
 import threading
 
 from database.variables import *
+from database.idioms import *
 from database.operators import *
 
 class Result:
@@ -257,6 +258,9 @@ class Database:
                 offset = Table['columns'][column]
 
                 for index in rows:
+                    if isinstance(value, Idiom):
+                        value = value.decode(locals())
+
                     Table['entries'][index][offset] = value
 
             self._buildindex(table, Result(rows, self), columns)

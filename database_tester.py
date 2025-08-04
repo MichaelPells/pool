@@ -192,14 +192,10 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # result = db.read("Table1", {"id": 200})
 # print(result.get(row=0, column="phone").retrieve())
 
-db.update("Table1", {"id": 100}, record={"phone": "Hello"})
-
-db.update("Table1", {"id": 300}, record={"phone": Formula(all, Field(100, "phone"))})
-
-print(db.tables["Table1"]["references"])
+db.update("Table1", {"id": 300}, record={"gender": This(lambda x: x * 2)})
 
 result = db.read("Table1", {"id": 300})
-print(result.get(row=0, column="phone").retrieve())
+print(result.get(row=0, column="gender"))
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
 
