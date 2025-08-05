@@ -16,12 +16,12 @@ class This(Idiom):
         return self.function(value)
     
 class Generator(Idiom):
-    def __init__(self, initial, function, controller=None, **init):
-        self.initial = initial
+    def __init__(self, init, function, controller=None, **initializers):
+        self.init = init
         self.function = function
         self.controller = controller
 
-        for name, data in init.items():
+        for name, data in initializers.items():
             self.__setattr__(name, data)
 
     def decode(self, data):
@@ -29,7 +29,7 @@ class Generator(Idiom):
             try:
                 self.prev = self.function(self.prev)
             except AttributeError:
-                self.prev = self.initial
+                self.prev = self.init
 
             return self.prev
         else:

@@ -202,7 +202,7 @@ def controller(f, g):
         try:
             g.prev = f(g.prev)
         except AttributeError:
-            g.prev = g.initial
+            g.prev = g.init
     else:
         g.prev = sum(g.results[-2:])
     
