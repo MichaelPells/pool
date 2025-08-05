@@ -258,10 +258,10 @@ class Database:
                 offset = Table['columns'][column]
 
                 for index in rows:
-                    if isinstance(value, Idiom):
-                        value = value.decode(locals())
-
-                    Table['entries'][index][offset] = value
+                    if not isinstance(value, Idiom):
+                        Table['entries'][index][offset] = value
+                    else:
+                        Table['entries'][index][offset] = value.decode(locals())
 
             self._buildindex(table, Result(rows, self), columns)
 
