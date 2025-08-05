@@ -192,10 +192,27 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # result = db.read("Table1", {"id": 200})
 # print(result.get(row=0, column="phone").retrieve())
 
-db.update("Table1", {"id": 300}, record={"gender": This(lambda x: x * 2, "isstudent")})
+# db.update("Table1", {"id": 300}, record={"gender": This(lambda x: x * 2, "isstudent")})
 
-result = db.read("Table1", {"id": 300})
-print(result.get(row=0, column="gender"))
+# result = db.read("Table1", {"id": 300})
+# print(result.get(row=0, column="gender"))
+
+def controller(f, g):
+    if len(g.results) < 2:
+        try:
+            g.prev = f(g.prev)
+        except AttributeError:
+            g.prev = g.initial
+    else:
+        g.prev = sum(g.results[-2:])
+    
+    g.results.append(g.prev)
+
+    return g.prev
+
+y = Generator(0, lambda x: x + 1, controller, results = [])
+for n in range(10):
+    print(y.decode({}))
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
 
