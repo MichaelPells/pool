@@ -192,27 +192,29 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # result = db.read("Table1", {"id": 200})
 # print(result.get(row=0, column="phone").retrieve())
 
-def controller(f, g):
-    if len(g.results) < 2:
-        try:
-            g.prev = f(g.prev)
-        except AttributeError:
-            g.prev = g.init
-    else:
-        g.prev = sum(g.results[-2:])
+# def controller(f, g):
+#     if len(g.results) < 2:
+#         try:
+#             g.prev = f(g.prev)
+#         except AttributeError:
+#             g.prev = g.init
+#     else:
+#         g.prev = sum(g.results[-2:])
     
-    g.results.append(g.prev)
+#     g.results.append(g.prev)
 
-    return g.prev
+#     return g.prev
 
-y = Generator(0, lambda x: x + 1, controller, results = [])
+# y = Generator(0, lambda x: x + 1, controller, results = [])
 # for n in range(10):
 #     print(y.decode({}))
 
-db.update("Table1", record={"gender": y})
+# y = Generator(Field(199, "id"), lambda Prev: Field(Prev.row + 1, "id"))
 
-result = db.read("Table1")
-print(result.get(column="gender"))
+db.update("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}), record={"gender": This(lambda id: Field(id - 1, "id"), "id")})
+
+result = db.read("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}))
+print([[row[0], row[1].retrieve()] for row in result.get(column=["id", "gender"])])
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
 
