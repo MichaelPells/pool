@@ -387,7 +387,7 @@ class Formula(Var):
 
         column = params.column
 
-        return database._select(self.table, column, self.retrieve()) # Check for similar here instead!
+        return database._select(self.table, column, self.retrieve())
     
     def compute(self, database=None, table=None):
         self.database = self.database or database
