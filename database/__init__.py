@@ -90,6 +90,8 @@ class Database:
 
         rows = rows.rows or Table['entries'].keys()
 
+        wildcardcolumns = []
+
         for index in rows:
             for column, offset in columns.items():
                 row = entries[index]
@@ -107,14 +109,20 @@ class Database:
                 if index in references[column]:
                     cols = references[column][index]
 
-                    for col, rs in cols.items():
+                    for col, rs in list(cols.items()):
+                        self._clearindex(table, Result(rs, self), [col])
                         self._buildindex(table, Result(rs, self), [col])
 
                 if '*' in references[column]:
-                    cols = references[column]['*']
+                    if column not in wildcardcolumns:
+                        wildcardcolumns.append(column)
 
-                    for col, rs in cols.items():
-                        self._buildindex(table, Result(rs, self), [col])
+        for column in wildcardcolumns:
+            cols = references[column]['*']
+
+            for col, rs in list(cols.items()):
+                self._clearindex(table, Result(rs, self), [col])
+                self._buildindex(table, Result(rs, self), [col])
 
     def _clearindex(self, table, rows=Result(), columns=[]):
         Table = self.tables[table]
@@ -136,19 +144,6 @@ class Database:
                         del Table['indexes'][column][field]
                 else:
                     field.unindex(self, table, Params(indexes=indexes, column=column, index=index))
-
-                # Clear index of its dependent variables in references
-                if index in references[column]:
-                    cols = references[column][index]
-
-                    for col, rs in cols.items():
-                        self._clearindex(table, Result(rs, self), [col])
-
-                if '*' in references[column]:
-                    cols = references[column]['*']
-
-                    for col, rs in cols.items():
-                        self._clearindex(table, Result(rs, self), [col])
 
     def _select(self, table, column=None, value=None): # What should really be the defaults here?
         Column = self.tables[table]['indexes'][column]

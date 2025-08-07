@@ -40,9 +40,12 @@ class Var:
         # else:
         #    field = self.compute()
 
-        field = self.compute()
+        try:
+            field = self.compute()
 
-        register(field)
+            register(field)
+        except KeyError:
+            pass
         
         self._clearreference(), self.reference()
 
@@ -80,9 +83,25 @@ class Var:
 
                     unregister(value)
 
-        field = self.retrieve()
+        try:
+            field = self.retrieve()
 
-        unregister(field)
+            unregister(field)
+        except KeyError:
+            pass
+
+        if self.references:
+            references = self.database.tables[self.table]['references']
+
+            for col, rows in self.references.items():
+                for row in rows:
+                    references[col][row][column].remove(index)
+
+                    if not references[col][row][column]:
+                        del references[col][row][column]
+
+                    if not references[col][row]:
+                        del references[col][row]
 
     def reference(self, database=None, table=None):
         ...
@@ -286,7 +305,8 @@ class Field(Var):
         if not self.referenced:
             if not isinstance(self.row, Var) and not isinstance(self.column, Var):
                 key = self.database.tables[self.table]['primarykey']
-                index = self.database._select(self.table, key, self.row)[0]
+                indexes = self.database._select(self.table, key, self.row)
+                index = indexes[0] if indexes else '*'
                 self._updatereferences({self.column: [index]})
             else:
                 if not isinstance(self.row, Var):

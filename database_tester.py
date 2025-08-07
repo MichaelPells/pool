@@ -211,17 +211,24 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 
 # y = Generator(Field(199, "id"), lambda Prev: Field(Prev.row + 1, "id"))
 
-db.update("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}), record={"gender": This(lambda id: Field(id - 1, "id"), "id")})
+# db.update("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}), record={"gender": This(lambda id: Field(id - 1, "id"), "id")})
 
-result = db.read("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}))
-print([[row[0], row[1].retrieve()] for row in result.get(column=["id", "gender"])])
+# result = db.read("Table1", OR({"id": 200}, {"id": 201}, {"id": 202}))
+# print([[row[0], row[1].retrieve()] for row in result.get(column=["id", "gender"])])
+
 
 # db.update("Table1", {"id": 200}, record={"surname": "phone"})
 
-# db.update("Table1", {"id": 300}, record={"phone": Field(200, Field(200, "surname"))})
-# result = db.read("Table1", {"id": 300})
-# print(result.get(row=0, column="phone").retrieve())
-# print(db.tables["Table1"]["indexes"]["phone"][8140147440])
+db.update("Table1", {"id": 300}, record={"isstudent": Field(1000, "gender")})
+print(db.tables["Table1"]["references"])
+print(db.tables["Table1"]["indexes"]["isstudent"].keys())
+
+db.update("Table1", {"id": 400}, record={"id": 1000})
+print(db.tables["Table1"]["references"])
+print(db.tables["Table1"]["indexes"]["isstudent"].keys())
+
+result = db.read("Table1", {"id": 300})
+print(result.get(row=0, column="isstudent").retrieve())
 
 # db.update("Table1", {"id": 200}, record={"surname": "gender"})
 # result = db.read("Table1", {"id": 300})
