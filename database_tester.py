@@ -217,13 +217,11 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # print([[row[0], row[1].retrieve()] for row in result.get(column=["id", "gender"])])
 
 
-# db.update("Table1", {"id": 200}, record={"surname": "phone"})
-
-db.update("Table1", {"id": 300}, record={"isstudent": Field(1000, "gender")})
+db.update("Table1", {"id": 300}, record={"isstudent": Field(200, Field(1000, "surname"))})
 print(db.tables["Table1"]["references"])
 print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 
-db.update("Table1", {"id": 400}, record={"id": 1000, "gender": "Hello"})
+db.update("Table1", {"id": 400}, record={"id": 1000, "surname": "gender"})
 print(db.tables["Table1"]["references"])
 print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 
