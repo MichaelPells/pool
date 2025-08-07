@@ -129,7 +129,6 @@ class Database:
         columns = {column: Table['columns'][column] for column in columns} or Table['columns']
         entries = Table['entries']
         indexes = Table['indexes']
-        references = Table['references']
 
         rows = rows.rows or Table['entries'].keys()
 

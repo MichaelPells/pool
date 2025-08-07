@@ -73,9 +73,12 @@ class Var:
 
         def unregister(field):
             if type(field) != Singleton:
-                del indexes[column][field][index]
-                if not indexes[column][field]:
-                    del indexes[column][field]
+                try:
+                    del indexes[column][field][index]
+                    if not indexes[column][field]:
+                        del indexes[column][field]
+                except KeyError:
+                    pass
             else:
                 for value in field:
                     if isinstance(value, Var):

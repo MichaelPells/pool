@@ -223,12 +223,17 @@ db.update("Table1", {"id": 300}, record={"isstudent": Field(1000, "gender")})
 print(db.tables["Table1"]["references"])
 print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 
-db.update("Table1", {"id": 400}, record={"id": 1000})
+db.update("Table1", {"id": 400}, record={"id": 1000, "gender": "Hello"})
 print(db.tables["Table1"]["references"])
 print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 
 result = db.read("Table1", {"id": 300})
-print(result.get(row=0, column="isstudent").retrieve())
+print(result.get(row=0, column="isstudent").compute())
+
+db.update("Table1", {"id": 1000}, record={"gender": "Hi"})
+print(db.tables["Table1"]["indexes"]["isstudent"].keys())
+result = db.read("Table1", {"id": 300})
+print(result.get(row=0, column="isstudent").compute())
 
 # db.update("Table1", {"id": 200}, record={"surname": "gender"})
 # result = db.read("Table1", {"id": 300})
