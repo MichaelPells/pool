@@ -1,6 +1,26 @@
+__all__ = [
+    "Params",
+    "Const",
+    "Var",
+    "Escape",
+    "Error",
+    "Null",
+    "Any",
+    "Values",
+    "Field",
+    "Formula",
+    "Numbers"
+]
+
 from collections import UserList
 
+class error: ...
+class null: ...
 class Singleton(UserList): ...
+
+ERROR = error()
+NULL = null()
+
 
 class Params:
     def __init__(self, **params):
@@ -40,12 +60,9 @@ class Var:
         # else:
         #    field = self.compute()
 
-        try:
-            field = self.compute()
+        field = self.compute()
 
-            register(field)
-        except KeyError:
-            pass
+        register(field)
         
         self._clearreference(), self.reference()
 
@@ -73,12 +90,9 @@ class Var:
 
         def unregister(field):
             if type(field) != Singleton:
-                try:
-                    del indexes[column][field][index]
-                    if not indexes[column][field]:
-                        del indexes[column][field]
-                except KeyError:
-                    pass
+                del indexes[column][field][index]
+                if not indexes[column][field]:
+                    del indexes[column][field]
             else:
                 for value in field:
                     if isinstance(value, Var):
@@ -86,12 +100,9 @@ class Var:
 
                     unregister(value)
 
-        try:
-            field = self.retrieve()
+        field = self.retrieve()
 
-            unregister(field)
-        except KeyError:
-            pass
+        unregister(field)
 
         if self.references:
             references = self.database.tables[self.table]['references']
@@ -151,16 +162,33 @@ class Escape(Var, Const):
     def compute(self, database=None, table=None):
         return self.variable
 
+class Error(Var):
+    def __init__(self, exception=None):
+        self.database = None
+        self.table = None
+
+        self.value = ERROR
+        self.exception = exception
+        self.references = {}
+        self.stored = False
+
+    def process(self, database=None, table=None, params=Params()):
+        self.database = self.database or database
+        self.table = self.table or table
+
+        column = params.column
+
+        return self.database._select(self.table, column, self.retrieve())
+    
+    def compute(self, database=None, table=None):
+        return self.value
+
 class Null(Var):
-    class null:...
-
-    NULL = null()
-
     def __init__(self):
         self.database = None
         self.table = None
 
-        self.value = Null.NULL
+        self.value = NULL
         self.references = {}
         self.stored = False
 
@@ -348,23 +376,30 @@ class Field(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        if not isinstance(self.row, Var):
-            row = self.row
-        else:
-            row = self.row.compute(self.database, self.table)
+        try:
+            if not isinstance(self.row, Var):
+                row = self.row
+            else:
+                row = self.row.compute(self.database, self.table)
 
-        if not isinstance(self.column, Var):
-            column = self.column
-        else:
-            column = self.column.compute(self.database, self.table)
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
 
-        Table = self.database.tables[self.table]
-        key = Table['primarykey']
-        index = list(Table['indexes'][key][row].keys())[0]
-        entry = Table['entries'][index]
-        offset = Table['columns'][column]
+            Table = self.database.tables[self.table]
+            key = Table['primarykey']
+            index = list(Table['indexes'][key][row].keys())[0]
+            entry = Table['entries'][index]
+            offset = Table['columns'][column]
 
-        curr = entry[offset]
+            curr = entry[offset]
+        except Exception as exception:
+            curr = Error(exception)
+
+        if isinstance(curr, Var):
+            curr = curr.retrieve()
+
         self.prev = curr
         self.stored = True
 
