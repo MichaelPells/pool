@@ -221,21 +221,20 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 
 db.update("Table1", {"id": 300}, record={"isstudent": Field(1000, "gender")})
 # print(db.tables["Table1"]["references"])
-print(db.tables["Table1"]["indexes"]["isstudent"])
 print(db.tables["Table1"]["indexes"]["isstudent"].keys())
-
-# db.update("Table1", {"id": 400}, record={"id": 1000, "gender": "Hello"})
-# print(db.tables["Table1"]["references"])
-# print(db.tables["Table1"]["indexes"]["isstudent"].keys())
-
-# result = db.read("Table1", {"id": 300})
-# print(result.get(row=0, column="isstudent").compute())
-
-# db.update("Table1", {"id": 1000}, record={"gender": "Hi"})
-# print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 result = db.read("Table1", {"isstudent": Error()})
 print(result.count)
 print(result.get(row=0, column="isstudent").compute().args)
+
+db.update("Table1", {"id": 400}, record={"id": 1000, "gender": "Hello"})
+# print(db.tables["Table1"]["references"])
+print(db.tables["Table1"]["indexes"]["isstudent"].keys())
+
+result = db.read("Table1", {"id": 300})
+print(result.get(row=0, column="isstudent").compute())
+
+db.update("Table1", {"id": 1000}, record={"gender": "Hi"})
+print(db.tables["Table1"]["indexes"]["isstudent"].keys())
 
 
 # db.update("Table1", {"id": 300}, record={"isstudent": Field(200, Field(1000, "surname"))})
