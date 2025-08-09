@@ -177,7 +177,7 @@ class Escape(Var, Const):
         self.stored = False
 
     def __len__(self): return 1
-    
+
     def compute(self, database=None, table=None):
         return self.variable
 
@@ -186,7 +186,7 @@ class Error(Var):
         self.database = None
         self.table = None
 
-        self.exception = exception
+        self.exception = exception # Can this ever be a variable too?
         self.references = {}
         self.stored = False
 
@@ -199,14 +199,13 @@ class Error(Var):
         return self.database._select(self.table, column, ERROR)
     
     def compute(self, database=None, table=None):
-        return error(self.exception)
+        return error(self.exception) # How should errors with `self.exception` be handled?
 
 class Null(Var):
     def __init__(self):
         self.database = None
         self.table = None
 
-        self.value = NULL
         self.references = {}
         self.stored = False
 
@@ -218,10 +217,10 @@ class Null(Var):
 
         column = params.column
 
-        return self.database._select(self.table, column, self.retrieve())
+        return self.database._select(self.table, column, NULL)
     
     def compute(self, database=None, table=None):
-        return self.value
+        return NULL
 
 class Any(Var):
     def __init__(self, values: list, database=None, table=None):
@@ -271,16 +270,20 @@ class Any(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        if not isinstance(self.values, Var):
-            values = []
-            for value in self.values:
-                if isinstance(value, Var):
-                    value = value.compute(self.database, self.table)
-                values.append(value)
-        else:
-            values = self.values.compute(self.database, self.table)
+        try:
+            if not isinstance(self.values, Var):
+                values = []
+                for value in self.values:
+                    if isinstance(value, Var):
+                        value = value.compute(self.database, self.table)
+                    values.append(value)
+            else:
+                values = self.values.compute(self.database, self.table)
 
-        curr = singleton(values)
+            curr = singleton(values)
+        except Exception as exception:
+            curr = Error(exception).retrieve()
+
         self.prev = curr
         self.stored = True
 
@@ -324,12 +327,16 @@ class Values(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        if not isinstance(self.column, Var):
-            column = self.column
-        else:
-            column = self.column.compute(self.database, self.table)
+        try:
+            if not isinstance(self.column, Var):
+                column = self.column
+            else:
+                column = self.column.compute(self.database, self.table)
 
-        curr = list(self.database.tables[self.table]['indexes'][column].keys())
+            curr = list(self.database.tables[self.table]['indexes'][column].keys())
+        except Exception as exception:
+            curr = Error(exception).retrieve()
+
         self.prev = curr
         self.stored = True
 
@@ -416,7 +423,7 @@ class Field(Var):
             curr = Error(exception)
 
         if isinstance(curr, Var):
-            curr = curr.retrieve()
+            curr = curr.retrieve(self.database, self.table)
 
         self.prev = curr
         self.stored = True
@@ -469,24 +476,31 @@ class Formula(Var):
         self.database = self.database or database
         self.table = self.table or table
 
-        if not isinstance(self.function, Var):
-            function = self.function
-        else:
-            function = self.function.retrieve(self.database, self.table)
+        try:
+            if not isinstance(self.function, Var):
+                function = self.function
+            else:
+                function = self.function.retrieve(self.database, self.table)
 
-        orderedparameters = list(self.orderedparameters)
+            orderedparameters = list(self.orderedparameters)
 
-        for n, value in enumerate(self.orderedparameters):
-            if isinstance(value, Var):
-                orderedparameters[n] = value.compute(self.database, self.table)
+            for n, value in enumerate(self.orderedparameters):
+                if isinstance(value, Var):
+                    orderedparameters[n] = value.compute(self.database, self.table)
 
-        namedparameters = dict(self.namedparameters)
+            namedparameters = dict(self.namedparameters)
 
-        for param, value in self.namedparameters.items():
-            if isinstance(value, Var):
-                namedparameters[param] = value.compute(self.database, self.table)
+            for param, value in self.namedparameters.items():
+                if isinstance(value, Var):
+                    namedparameters[param] = value.compute(self.database, self.table)
 
-        curr = function(*orderedparameters, **namedparameters)
+            curr = function(*orderedparameters, **namedparameters)
+        except Exception as exception:
+            curr = Error(exception)
+
+        if isinstance(curr, Var):
+            curr = curr.retrieve(self.database, self.table)
+
         self.prev = curr
         self.stored = True
 
@@ -529,13 +543,17 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.database = self.database or database
             self.table = self.table or table
+
+            try:
+                if not isinstance(self.column, Var):
+                    column = self.column
+                else:
+                    column = self.column.compute(self.database, self.table)
             
-            if not isinstance(self.column, Var):
-                column = self.column
-            else:
-                column = self.column.compute(self.database, self.table)
-        
-            curr = max(self.database.tables[self.table]['indexes'][column])
+                curr = max(self.database.tables[self.table]['indexes'][column])
+            except Exception as exception:
+                curr = Error(exception).retrieve()
+
             self.prev = curr
             self.stored = True
 
@@ -576,13 +594,17 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.database = self.database or database
             self.table = self.table or table
-            
-            if not isinstance(self.column, Var):
-                column = self.column
-            else:
-                column = self.column.compute(self.database, self.table)
 
-            curr = min(self.database.tables[self.table]['indexes'][column])
+            try:
+                if not isinstance(self.column, Var):
+                    column = self.column
+                else:
+                    column = self.column.compute(self.database, self.table)
+
+                curr = min(self.database.tables[self.table]['indexes'][column])
+            except Exception as exception:
+                curr = Error(exception).retrieve()
+
             self.prev = curr
             self.stored = True
 
@@ -623,13 +645,17 @@ class Numbers:
         def compute(self, database=None, table=None):
             self.database = self.database or database
             self.table = self.table or table
-            
-            if not isinstance(self.column, Var):
-                column = self.column
-            else:
-                column = self.column.compute(self.database, self.table)
 
-            curr = sum(self.database.tables[self.table]['indexes'][column])
+            try:
+                if not isinstance(self.column, Var):
+                    column = self.column
+                else:
+                    column = self.column.compute(self.database, self.table)
+
+                curr = sum(self.database.tables[self.table]['indexes'][column])
+            except Exception as exception:
+                curr = Error(exception).retrieve()
+
             self.prev = curr
             self.stored = True
 
