@@ -14,9 +14,9 @@ __all__ = [
 
 from collections import UserList
 
-class error: ...
+class error(Exception): ...
 class null: ...
-class Singleton(UserList): ...
+class singleton(UserList): ...
 
 ERROR = error()
 NULL = null()
@@ -35,19 +35,8 @@ class Var:
         self.database = self.database or database
         self.table = self.table or table
 
-        indexes = params.indexes
         column = params.column
-        index = params.index
-
-        def register(field):
-            if type(field) != Singleton:
-                if field not in indexes[column]:
-                    indexes[column][field] = {}
-
-                indexes[column][field][index] = index
-            else:
-                for value in field:
-                    register(value)
+        index = params.index            
 
         # if self.stored:
         #     prev = self.prev
@@ -62,7 +51,7 @@ class Var:
 
         field = self.compute()
 
-        register(field)
+        self.register(field, params)
         
         self._clearreference(), self.reference()
 
@@ -84,25 +73,12 @@ class Var:
         self.database = self.database or database
         self.table = self.table or table
 
-        indexes = params.indexes
         column = params.column
-        index = params.index
-
-        def unregister(field):
-            if type(field) != Singleton:
-                del indexes[column][field][index]
-                if not indexes[column][field]:
-                    del indexes[column][field]
-            else:
-                for value in field:
-                    if isinstance(value, Var):
-                        value = value.compute(self.database, self.table)
-
-                    unregister(value)
+        index = params.index            
 
         field = self.retrieve()
 
-        unregister(field)
+        self.unregister(field, params)
 
         if self.references:
             references = self.database.tables[self.table]['references']
@@ -116,6 +92,49 @@ class Var:
 
                     if not references[col][row]:
                         del references[col][row]
+
+    def register(self, value, params=Params()):
+        indexes = params.indexes
+        column = params.column
+        index = params.index
+
+        if type(value) == error:
+            if ERROR not in indexes[column]:
+                indexes[column][ERROR] = {}
+
+            indexes[column][ERROR][index] = index
+
+        elif type(value) == singleton:
+            for val in value:
+                self.register(val, params)
+
+        else:
+            if value not in indexes[column]:
+                indexes[column][value] = {}
+
+            indexes[column][value][index] = index
+
+    def unregister(self, value, params=Params()):
+        indexes = params.indexes
+        column = params.column
+        index = params.index
+
+        if type(value) == error:
+            del indexes[column][ERROR][index]
+            if not indexes[column][ERROR]:
+                del indexes[column][ERROR]
+
+        elif type(value) == singleton:
+            for val in value:
+                if isinstance(val, Var):
+                    val = val.compute(self.database, self.table)
+
+                self.unregister(val)
+
+        else:
+            del indexes[column][value][index]
+            if not indexes[column][value]:
+                del indexes[column][value]
 
     def reference(self, database=None, table=None):
         ...
@@ -163,11 +182,10 @@ class Escape(Var, Const):
         return self.variable
 
 class Error(Var):
-    def __init__(self, exception=None):
+    def __init__(self, exception=Exception()):
         self.database = None
         self.table = None
 
-        self.value = ERROR
         self.exception = exception
         self.references = {}
         self.stored = False
@@ -178,10 +196,10 @@ class Error(Var):
 
         column = params.column
 
-        return self.database._select(self.table, column, self.retrieve())
+        return self.database._select(self.table, column, ERROR)
     
     def compute(self, database=None, table=None):
-        return self.value
+        return error(self.exception)
 
 class Null(Var):
     def __init__(self):
@@ -262,7 +280,7 @@ class Any(Var):
         else:
             values = self.values.compute(self.database, self.table)
 
-        curr = Singleton(values)
+        curr = singleton(values)
         self.prev = curr
         self.stored = True
 
