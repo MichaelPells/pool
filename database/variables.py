@@ -56,6 +56,11 @@ class Var:
         self._clearreference(), self.reference()
 
         if self.references:
+            if self.cycles:
+                raise Exception("Cyclic referencing made.")
+
+            self.cycles += 1
+            print(self.references)
             references = self.database.tables[self.table]['references']
 
             for col, rows in self.references.items():
@@ -232,6 +237,7 @@ class Any(Var):
         self.referenced = False
         self.stored = False
         self.prev = None
+        self.cycles = 0
 
     def __len__(self): return 1
 
@@ -266,7 +272,7 @@ class Any(Var):
 
         return list(set(results[0]).union(*results[1:]))
     
-    def compute(self, database=None, table=None):
+    def compute(self, database=None, table=None): # Can `null` and `error` be values here?
         self.database = self.database or database
         self.table = self.table or table
 
@@ -279,6 +285,11 @@ class Any(Var):
                     values.append(value)
             else:
                 values = self.values.compute(self.database, self.table)
+
+                if isinstance(values, error):
+                    raise Exception(values)
+                elif isinstance(values, null):
+                    raise ValueError(f'column has no value.') # ValueError?
 
             curr = singleton(values)
         except Exception as exception:
@@ -299,6 +310,7 @@ class Values(Var):
         self.referenced = False
         self.stored = False
         self.prev = None
+        self.cycles = 0
 
     def __len__(self): return len(self.retrieve())
 
@@ -333,7 +345,16 @@ class Values(Var):
             else:
                 column = self.column.compute(self.database, self.table)
 
+                if isinstance(column, error):
+                    raise Exception(column)
+                elif isinstance(column, null):
+                    raise ValueError(f'column has no value.') # ValueError?
+
             curr = list(self.database.tables[self.table]['indexes'][column].keys())
+            try: curr.remove(ERROR)
+            except: pass
+            try: curr.remove(NULL)
+            except: pass
         except Exception as exception:
             curr = Error(exception).retrieve()
 
@@ -353,6 +374,7 @@ class Field(Var):
         self.referenced = False
         self.stored = False
         self.prev = None
+        self.cycles = 0
 
     def reference(self, database=None, table=None):
         self.database = self.database or database
@@ -407,10 +429,20 @@ class Field(Var):
             else:
                 row = self.row.compute(self.database, self.table)
 
+                if isinstance(row, error):
+                    raise Exception(row)
+                elif isinstance(row, null):
+                    raise ValueError(f'row has no value.') # ValueError?
+
             if not isinstance(self.column, Var):
                 column = self.column
             else:
                 column = self.column.compute(self.database, self.table)
+
+                if isinstance(column, error):
+                    raise Exception(column)
+                elif isinstance(column, null):
+                    raise ValueError(f'column has no value.') # ValueError?
 
             Table = self.database.tables[self.table]
             key = Table['primarykey']
@@ -442,6 +474,7 @@ class Formula(Var):
         self.referenced = False
         self.stored = False
         self.prev = None
+        self.cycles = 0
 
     def reference(self, database=None, table=None):
         self.database = self.database or database
@@ -482,17 +515,32 @@ class Formula(Var):
             else:
                 function = self.function.retrieve(self.database, self.table)
 
+                if isinstance(function, error):
+                    raise Exception(function)
+                elif isinstance(function, null):
+                    raise ValueError(f'function has no value.') # ValueError?
+
             orderedparameters = list(self.orderedparameters)
 
             for n, value in enumerate(self.orderedparameters):
                 if isinstance(value, Var):
                     orderedparameters[n] = value.compute(self.database, self.table)
 
+                    if isinstance(orderedparameters[n], error):
+                        raise Exception(orderedparameters[n])
+                    elif isinstance(orderedparameters[n], null):
+                        raise ValueError(f'Ordered parameter {n + 1} has no value.') # ValueError?
+
             namedparameters = dict(self.namedparameters)
 
             for param, value in self.namedparameters.items():
                 if isinstance(value, Var):
                     namedparameters[param] = value.compute(self.database, self.table)
+
+                    if isinstance(namedparameters[param], error):
+                        raise Exception(namedparameters[param])
+                    elif isinstance(namedparameters[param], null):
+                        raise ValueError(f'Named parameter `{param}` has no value.') # ValueError?
 
             curr = function(*orderedparameters, **namedparameters)
         except Exception as exception:
@@ -518,6 +566,7 @@ class Numbers:
             self.referenced = False
             self.stored = False
             self.prev = None
+            self.cycles = 0
 
         def reference(self, database=None, table=None):
             self.database = self.database or database
@@ -549,6 +598,11 @@ class Numbers:
                     column = self.column
                 else:
                     column = self.column.compute(self.database, self.table)
+
+                    if isinstance(column, error):
+                        raise Exception(column)
+                    elif isinstance(column, null):
+                        raise ValueError('column has no value.') # ValueError?
             
                 curr = max(self.database.tables[self.table]['indexes'][column])
             except Exception as exception:
@@ -569,6 +623,7 @@ class Numbers:
             self.referenced = False
             self.stored = False
             self.prev = None
+            self.cycles = 0
 
         def reference(self, database=None, table=None):
             self.database = self.database or database
@@ -600,6 +655,11 @@ class Numbers:
                     column = self.column
                 else:
                     column = self.column.compute(self.database, self.table)
+
+                    if isinstance(column, error):
+                        raise Exception(column)
+                    elif isinstance(column, null):
+                        raise ValueError('column has no value.') # ValueError?
 
                 curr = min(self.database.tables[self.table]['indexes'][column])
             except Exception as exception:
@@ -620,6 +680,7 @@ class Numbers:
             self.referenced = False
             self.stored = False
             self.prev = None
+            self.cycles = 0
 
         def reference(self, database=None, table=None):
             self.database = self.database or database
@@ -651,6 +712,11 @@ class Numbers:
                     column = self.column
                 else:
                     column = self.column.compute(self.database, self.table)
+
+                    if isinstance(column, error):
+                        raise Exception(column)
+                    elif isinstance(column, null):
+                        raise ValueError('column has no value.') # ValueError?
 
                 curr = sum(self.database.tables[self.table]['indexes'][column])
             except Exception as exception:

@@ -91,6 +91,7 @@ class Database:
         rows = rows.rows or Table['entries'].keys()
 
         wildcardcolumns = []
+        resetfields = []
 
         for index in rows:
             for column, offset in columns.items():
@@ -104,6 +105,9 @@ class Database:
                     indexes[column][field][index] = index
                 else:
                     field.index(self, table, Params(indexes=indexes, column=column, index=index))
+
+                    if field.references:
+                        resetfields.append(field)
                 
                 # Rebuild index for its dependent variables in references
                 if index in references[column]:
@@ -123,6 +127,9 @@ class Database:
             for col, rs in list(cols.items()):
                 self._clearindex(table, Result(rs, self), [col])
                 self._buildindex(table, Result(rs, self), [col])
+
+        for field in resetfields:
+            field.cycle = 0
 
     def _clearindex(self, table, rows=Result(), columns=[]):
         Table = self.tables[table]
