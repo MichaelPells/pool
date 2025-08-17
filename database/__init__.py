@@ -252,6 +252,7 @@ class Database:
 
             self.recenttables = [table]
             self.backup[table] = dict(Table)
+            print(self.backup[table]["indexes"]["id"][668])
 
             if rows == None:
                 rows = Table['entries'].keys()
@@ -273,10 +274,11 @@ class Database:
 
             try:
                 self._buildindex(table, Result(rows, self), columns)
-            except Exception as error:
+            except Exception:
+                print(self.backup[table]["indexes"]["id"][668])
                 self.undo()
 
-                raise error
+                # raise
 
     def insert(self, table, entries):
         with self.lock:
@@ -314,11 +316,10 @@ class Database:
 
     def undo(self):
         for table in self.recenttables:
-            if table not in self.backup:
+            if table not in self.backup: # Just created
                 del self.tables[table]
-                self.recenttables = []
-                return
-
-            self.tables[table] = self.backup[table]
-            self.recenttables = []
-            return
+            else:
+                self.tables[table] = self.backup[table]
+                del self.backup[table]
+        
+        self.recenttables = []

@@ -57,7 +57,7 @@ class Var:
 
         if self.references:
             if self.cycles:
-                raise Exception("Cyclic referencing made.")
+                raise Exception("Cyclic referencing.")
 
             self.cycles += 1
             print(self.references)
