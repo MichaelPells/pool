@@ -76,6 +76,8 @@ class Database:
 
         self.tables = {}
         self.primarytable = None
+        self.backup = {}
+        self.recenttables = []
 
     def _buildindex(self, table, rows=Result(), columns=[]):
         Table = self.tables[table]
@@ -193,6 +195,8 @@ class Database:
 
     def create(self, table, columns=[], entries=[], primarykey=None): # What happens when entries contain dependent variables?
         with self.lock:
+            self.recenttables = [table]
+
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
@@ -246,6 +250,9 @@ class Database:
         with self.lock:
             Table = self.tables[table]
 
+            self.recenttables = [table]
+            self.backup[table] = dict(Table)
+
             if rows == None:
                 rows = Table['entries'].keys()
             else:
@@ -264,7 +271,12 @@ class Database:
                     else:
                         Table['entries'][index][offset] = value.decode(locals())
 
-            self._buildindex(table, Result(rows, self), columns)
+            try:
+                self._buildindex(table, Result(rows, self), columns)
+            except Exception as error:
+                self.undo()
+
+                raise error
 
     def insert(self, table, entries):
         with self.lock:
@@ -299,3 +311,14 @@ class Database:
                 del Table['entries'][index]
 
             Table['count'] -= len(rows)
+
+    def undo(self):
+        for table in self.recenttables:
+            if table not in self.backup:
+                del self.tables[table]
+                self.recenttables = []
+                return
+
+            self.tables[table] = self.backup[table]
+            self.recenttables = []
+            return
