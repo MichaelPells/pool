@@ -316,6 +316,17 @@ class Database:
 
     def delete(self, table):
         with self.lock:
+            Table = self.tables[table]
+
+            self.recenttables = [table]
+
+            oldTable = copy.copy(Table)
+
+            def undo():
+                self.tables[table] = oldTable
+
+            self.backup[table] = undo
+
             del self.tables[table]
 
     def remove(self, table, rows=None):
