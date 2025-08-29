@@ -1,4 +1,5 @@
 import threading
+import copy
 
 from database.variables import *
 from database.idioms import *
@@ -251,8 +252,7 @@ class Database:
             Table = self.tables[table]
 
             self.recenttables = [table]
-            self.backup[table] = dict(Table)
-            print(self.backup[table]["indexes"]["id"][668])
+            self.backup[table] = []
 
             if rows == None:
                 rows = Table['entries'].keys()
@@ -267,6 +267,13 @@ class Database:
                 offset = Table['columns'][column]
 
                 for index in rows:
+                    oldvalue = copy.copy(Table['entries'][index])[offset]
+                    def undo():
+                        self._clearindex(table, Result([index], self), [column])
+                        Table['entries'][index][offset] = oldvalue
+                        self._buildindex(table, Result([index], self), [column])
+                    self.backup[table].append(undo)
+
                     if not isinstance(value, Idiom):
                         Table['entries'][index][offset] = value
                     else:
@@ -275,7 +282,6 @@ class Database:
             try:
                 self._buildindex(table, Result(rows, self), columns)
             except Exception:
-                print(self.backup[table]["indexes"]["id"][668])
                 self.undo()
 
                 # raise
@@ -319,7 +325,12 @@ class Database:
             if table not in self.backup: # Just created
                 del self.tables[table]
             else:
-                self.tables[table] = self.backup[table]
+                for change in self.backup[table]:
+                    print(self.tables[table]['entries'][201][0])
+                    change()
+                    print(self.tables[table]['entries'][201][0])
+
+
                 del self.backup[table]
         
         self.recenttables = []
