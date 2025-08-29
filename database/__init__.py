@@ -320,14 +320,23 @@ class Database:
 
             self.recenttables = [table]
 
+            if self.primarytable == table:
+                primary = True
+
             oldTable = copy.copy(Table)
 
             def undo():
                 self.tables[table] = oldTable
 
+                if primary:
+                    self.primarytable = table
+
             self.backup[table] = undo
 
             del self.tables[table]
+
+            if primary:
+                self.primarytable = None
 
     def remove(self, table, rows=None):
         with self.lock:
