@@ -198,6 +198,14 @@ class Database:
         with self.lock:
             self.recenttables = [table]
 
+            def undo():
+                del self.tables[table]
+
+                if self.primarytable == table:
+                    self.primarytable = None
+
+            self.backup[table] = undo
+
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
@@ -356,10 +364,7 @@ class Database:
 
     def undo(self):
         for table in self.recenttables:
-            if table not in self.backup: # Just created
-                del self.tables[table]
-            else:
-                self.backup[table]()
-                del self.backup[table]
+            self.backup[table]()
+            del self.backup[table]
         
         self.recenttables = []
