@@ -194,7 +194,7 @@ class Database:
 
             return query.process(results, table, self)
 
-    def create(self, table, columns=[], entries=[], primarykey=None): # What happens when entries contain dependent variables?
+    def create(self, table, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
         with self.lock:
             self.recenttables = [table]
 
@@ -221,7 +221,7 @@ class Database:
                 'primarykey': primarykey
             }
 
-            if not self.primarytable:
+            if primary or not self.primarytable:
                 self.primarytable = table
 
             self._buildindex(table)
