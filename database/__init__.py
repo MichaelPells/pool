@@ -196,8 +196,6 @@ class Database:
 
     def create(self, table, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
         with self.lock:
-            self.recenttables = [table]
-
             def undo():
                 del self.tables[table]
 
@@ -205,6 +203,7 @@ class Database:
                     self.primarytable = None
 
             self.backup[table] = undo
+            self.recenttables = [table]
 
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
@@ -259,16 +258,12 @@ class Database:
         with self.lock:
             Table = self.tables[table]
 
-            self.recenttables = [table]
-
             if rows == None:
                 rows = Table['entries'].keys()
             else:
                 rows = self._selector(table, rows)
     
             columns = {column: Table['columns'][column] for column in record}
-
-            self._clearindex(table, Result(rows, self), columns)
 
             oldvalues = {}
 
@@ -291,6 +286,9 @@ class Database:
                 self._buildindex(table, Result(rows, self), columns)
 
             self.backup[table] = undo
+            self.recenttables = [table]
+
+            self._clearindex(table, Result(rows, self), columns)
 
             for column, value in record.items():
                 offset = Table['columns'][column]
@@ -312,12 +310,14 @@ class Database:
         with self.lock:
             Table = self.tables[table]
 
-            self.recenttables = [table]
-
             start = Table['nextindex']
             stop = start + len(entries)
             rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
+
+            Table['entries'].update(entries)
+            Table['count'] += len(entries)
+            Table['nextindex'] = stop
 
             newindexes = [(start + index) for index in range(len(entries))]
 
@@ -327,18 +327,13 @@ class Database:
                     del Table['entries'][index]
 
             self.backup[table] = undo
-
-            Table['entries'].update(entries)
-            Table['count'] += len(entries)
-            Table['nextindex'] = stop
+            self.recenttables = [table]
 
             self._buildindex(table, Result(rows, self))
 
     def delete(self, table):
         with self.lock:
             Table = self.tables[table]
-
-            self.recenttables = [table]
 
             if self.primarytable == table:
                 primary = True
@@ -352,6 +347,7 @@ class Database:
                     self.primarytable = table
 
             self.backup[table] = undo
+            self.recenttables = [table]
 
             del self.tables[table]
 
@@ -367,6 +363,19 @@ class Database:
             else:
                 rows = self._selector(table, rows)
 
+            entries = {}
+
+            for index in rows:
+                entries[index] = copy.copy(Table['entries'][index])
+
+            def undo():
+                Table['entries'].update(entries)
+
+                self._buildindex(table, Result(rows, self))
+
+            self.backup[table] = undo
+            self.recenttables = [table]
+
             self._clearindex(table, Result(rows, self))
 
             for index in rows:
@@ -376,7 +385,9 @@ class Database:
 
     def undo(self):
         for table in self.recenttables:
-            self.backup[table]()
+            undo = self.backup[table]
+            undo()
+
             del self.backup[table]
         
         self.recenttables = []
