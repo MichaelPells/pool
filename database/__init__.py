@@ -311,10 +311,22 @@ class Database:
     def insert(self, table, entries):
         with self.lock:
             Table = self.tables[table]
+
+            self.recenttables = [table]
+
             start = Table['nextindex']
             stop = start + len(entries)
             rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
+
+            newindexes = [(start + index) for index in range(len(entries))]
+
+            def undo():
+                self._clearindex(table, Result(rows, self))
+                for index in newindexes:
+                    del Table['entries'][index]
+
+            self.backup[table] = undo
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)
