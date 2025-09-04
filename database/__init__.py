@@ -77,7 +77,7 @@ class Database:
 
         self.tables = {}
         self.primarytable = None
-        self.backup = {}
+        self.backup = []
         self.recenttables = []
 
     def _buildindex(self, table, rows=Result(), columns=[]):
@@ -204,8 +204,7 @@ class Database:
                 if self.primarytable == table:
                     self.primarytable = None
 
-            self.backup[table] = undo
-            self.recenttables = [table]
+            self.backup.append(undo)
 
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
@@ -293,8 +292,7 @@ class Database:
 
                 self._buildindex(table, Result(rows, self), columns)
 
-            self.backup[table] = undo
-            self.recenttables = [table]
+            self.backup.append(undo)
 
             self._clearindex(table, Result(rows, self), columns)
 
@@ -336,8 +334,7 @@ class Database:
                 for index in newindexes:
                     del Table['entries'][index]
 
-            self.backup[table] = undo
-            self.recenttables = [table]
+            self.backup.append(undo)
 
             self._buildindex(table, Result(rows, self))
 
@@ -358,8 +355,7 @@ class Database:
                 if primary:
                     self.primarytable = table
 
-            self.backup[table] = undo
-            self.recenttables = [table]
+            self.backup.append(undo)
 
             del self.tables[table]
 
@@ -387,8 +383,7 @@ class Database:
 
                 self._buildindex(table, Result(rows, self))
 
-            self.backup[table] = undo
-            self.recenttables = [table]
+            self.backup.append(undo)
 
             self._clearindex(table, Result(rows, self))
 
@@ -398,10 +393,6 @@ class Database:
             Table['count'] -= len(rows)
 
     def undo(self):
-        for table in self.recenttables:
-            undo = self.backup[table]
-            undo()
+        undo = self.backup.pop()
+        undo()
 
-            del self.backup[table]
-        
-        self.recenttables = []
