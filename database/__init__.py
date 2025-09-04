@@ -91,7 +91,7 @@ class Database:
             if column not in indexes:
                 indexes[column] = {}
 
-        rows = rows.rows or Table['entries'].keys()
+        rows = rows.rows or list(Table['entries'].keys())
 
         wildcardcolumns = []
         resetfields = []
@@ -140,7 +140,7 @@ class Database:
         entries = Table['entries']
         indexes = Table['indexes']
 
-        rows = rows.rows or Table['entries'].keys()
+        rows = rows.rows or list(Table['entries'].keys())
 
         for index in rows:
             for column, offset in columns.items():
@@ -194,8 +194,10 @@ class Database:
 
             return query.process(results, table, self)
 
-    def create(self, table, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
+    def create(self, table=None, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
         with self.lock:
+            table = table or self.primarytable
+
             def undo():
                 del self.tables[table]
 
@@ -225,12 +227,14 @@ class Database:
 
             self._buildindex(table)
 
-    def read(self, table, rows=None):
+    def read(self, table=None, rows=None):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             if rows == None:
-                rows = Table['entries'].keys()
+                rows = list(Table['entries'].keys())
             else:
                 rows = self._selector(table, rows)
 
@@ -238,12 +242,14 @@ class Database:
 
             return result
 
-    def view(self, table, rows=None):
+    def view(self, table=None, rows=None):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             if rows == None:
-                rows = Table['entries'].keys()
+                rows = list(Table['entries'].keys())
             else:
                 rows = self._selector(table, rows)
 
@@ -254,12 +260,14 @@ class Database:
 
             return result
 
-    def update(self, table, rows=None, record={}):
+    def update(self, table=None, rows=None, record={}):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             if rows == None:
-                rows = Table['entries'].keys()
+                rows = list(Table['entries'].keys())
             else:
                 rows = self._selector(table, rows)
     
@@ -306,8 +314,10 @@ class Database:
 
                 # raise
 
-    def insert(self, table, entries):
+    def insert(self, table=None, entries=[]):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             start = Table['nextindex']
@@ -331,8 +341,10 @@ class Database:
 
             self._buildindex(table, Result(rows, self))
 
-    def delete(self, table):
+    def delete(self, table=None):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             if self.primarytable == table:
@@ -354,12 +366,14 @@ class Database:
             if primary:
                 self.primarytable = None
 
-    def remove(self, table, rows=None):
+    def remove(self, table=None, rows=None):
         with self.lock:
+            table = table or self.primarytable
+
             Table = self.tables[table]
 
             if rows == None:
-                rows = Table['entries'].keys()
+                rows = list(Table['entries'].keys())
             else:
                 rows = self._selector(table, rows)
 
