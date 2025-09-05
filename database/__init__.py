@@ -392,7 +392,9 @@ class Database:
 
             Table['count'] -= len(rows)
 
-    def undo(self):
-        undo = self.backup.pop()
-        undo()
+    def undo(self, changes=1):
+        if changes == 1:
+            return self.backup.pop()()
+        else:
+            return [self.backup.pop()() for change in range(changes)]
 
