@@ -1,6 +1,17 @@
 class Idiom: ...
 
 
+class Now(Idiom):
+    def __init__(self, variable):
+        self.variable = variable
+
+    def decode(self, data):
+        print(data.keys())
+        database = data["self"]
+        table = data["table"]
+
+        return self.variable.compute(database, table)
+
 class This(Idiom):
     def __init__(self, function, column=None):
         self.function = function
