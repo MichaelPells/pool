@@ -305,6 +305,10 @@ class Database:
                     else:
                         Table['entries'][index][offset] = value.decode(locals())
 
+            # There is a big exception handling problem across Database class!
+            # Changes should be tracked along processes, so actions (such as reversals/undoing, reproting etc)
+            # may be taken appropriately, majorly to avoid an undefined database.
+            # To begin this diagnosis, try replicating a cyclic referencing.
             try:
                 self._buildindex(table, Result(rows, self), columns)
             except Exception:
