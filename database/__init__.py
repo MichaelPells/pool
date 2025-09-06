@@ -77,7 +77,7 @@ class Database:
 
         self.tables = {}
         self.primarytable = None
-        self.backup = []
+        self.backups = []
         self.recenttables = []
 
     def _buildindex(self, table, rows=Result(), columns=[]):
@@ -204,7 +204,7 @@ class Database:
                 if self.primarytable == table:
                     self.primarytable = None
 
-            self.backup.append(undo)
+            self.backups.append(undo)
 
             references = {column: {} for column in columns}
             columns = {column: offset for offset, column in enumerate(columns)}
@@ -292,7 +292,7 @@ class Database:
 
                 self._buildindex(table, Result(rows, self), columns)
 
-            self.backup.append(undo)
+            self.backups.append(undo)
 
             self._clearindex(table, Result(rows, self), columns)
 
@@ -338,7 +338,7 @@ class Database:
                 for index in newindexes:
                     del Table['entries'][index]
 
-            self.backup.append(undo)
+            self.backups.append(undo)
 
             self._buildindex(table, Result(rows, self))
 
@@ -359,7 +359,7 @@ class Database:
                 if primary:
                     self.primarytable = table
 
-            self.backup.append(undo)
+            self.backups.append(undo)
 
             del self.tables[table]
 
@@ -387,7 +387,7 @@ class Database:
 
                 self._buildindex(table, Result(rows, self))
 
-            self.backup.append(undo)
+            self.backups.append(undo)
 
             self._clearindex(table, Result(rows, self))
 
@@ -397,8 +397,11 @@ class Database:
             Table['count'] -= len(rows)
 
     def undo(self, changes=1):
-        if changes == 1:
-            return self.backup.pop()()
+        if changes <= len(self.backups):
+            if changes == 1:
+                return self.backups.pop()()
+            else:
+                return [self.backups.pop()() for change in range(changes)]
         else:
-            return [self.backup.pop()() for change in range(changes)]
+            raise Exception
 

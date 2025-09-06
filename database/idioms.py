@@ -6,7 +6,6 @@ class Now(Idiom):
         self.variable = variable
 
     def decode(self, data):
-        print(data.keys())
         database = data["self"]
         table = data["table"]
 
