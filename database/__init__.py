@@ -16,7 +16,7 @@ class Result:
     def __len__(self):
         return self.count
 
-    def get(self, row: list | Any = None, column: list | set | Any = Null(), table = None):
+    def get(self, row: list | AnyOf = None, column: list | set | AnyOf = Null(), table = None):
         table = table or self.database.primarytable
         Table = self.database.tables[table]
         row = row if row != None else range(0, self.count)
@@ -208,7 +208,13 @@ class Database:
             self.backups.append(undo)
 
             references = {column: {} for column in columns}
-            columns = {column: offset for offset, column in enumerate(columns)}
+            columns = {
+                column[0] if type(column) == tuple else column: {
+                    'offset': offset,
+                    'type': column[1] if type(column) == tuple else Any
+                }
+                for offset, column in enumerate(columns)
+            }
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
             count = len(entries)
 

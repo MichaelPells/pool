@@ -1,4 +1,4 @@
-class number:
+class Number:
     def check(data):
         if isinstance(data, int):
             return True
@@ -9,17 +9,17 @@ class number:
         result = int(data)
         return result
 
-class string:
+class String:
     ...
 
-class list:
+class List:
     ...
 
-class object:
+class Object:
     ...
 
-class date:
+class Date:
     ...
 
-class any:
+class Any:
     ...

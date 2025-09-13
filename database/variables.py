@@ -5,7 +5,7 @@ __all__ = [
     "Escape",
     "Error",
     "Null",
-    "Any",
+    "AnyOf",
     "Values",
     "Field",
     "Formula",
@@ -227,7 +227,7 @@ class Null(Var):
     def compute(self, database=None, table=None):
         return NULL
 
-class Any(Var):
+class AnyOf(Var):
     def __init__(self, values: list, database=None, table=None):
         self.database = database
         self.table = table
