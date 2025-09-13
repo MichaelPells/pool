@@ -1,4 +1,11 @@
-class Number:
+class Data:
+    def check(data):
+        return True
+    
+    def cast(data):
+        return data
+
+class Number(Data):
     def check(data):
         if isinstance(data, int):
             return True
@@ -9,17 +16,17 @@ class Number:
         result = int(data)
         return result
 
-class String:
+class String(Data):
     ...
 
-class List:
+class List(Data):
     ...
 
-class Object:
+class Object(Data):
     ...
 
-class Date:
+class Date(Data):
     ...
 
-class Any:
+class Any(Data):
     ...

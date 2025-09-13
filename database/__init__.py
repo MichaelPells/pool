@@ -30,17 +30,17 @@ class Result:
                 if type(column) == list:
                     record = []
                     for col in column:
-                        offset = Table['columns'][col]
+                        offset = Table['columns'][col]['offset']
                         field = entry[offset]
                         record.append(field)
                 elif type(column) == set:
                     record = {}
                     for col in column:
-                        offset = Table['columns'][col]
+                        offset = Table['columns'][col]['offset']
                         field = entry[offset]
                         record[col] = field
                 else:
-                    offset = Table['columns'][column]
+                    offset = Table['columns'][column]['offset']
                     record = entry[offset] # field
 
                 entries.append(record)
@@ -53,17 +53,17 @@ class Result:
             if type(column) == list:
                 result = [] # record
                 for col in column:
-                    offset = Table['columns'][col]
+                    offset = Table['columns'][col]['offset']
                     field = entry[offset]
                     result.append(field)
             elif type(column) == set:
                 result = {} # record
                 for col in column:
-                    offset = Table['columns'][col]
+                    offset = Table['columns'][col]['offset']
                     field = entry[offset]
                     result[col] = field
             else:
-                offset = Table['columns'][column]
+                offset = Table['columns'][column]['offset']
                 result = entry[offset] # field
         
         return result
@@ -83,7 +83,7 @@ class Database:
 
     def _buildindex(self, table, rows=Result(), columns=[]):
         Table = self.tables[table]
-        columns = {column: Table['columns'][column] for column in columns} or Table['columns']
+        columns = {column: Table['columns'][column]['offset'] for column in columns or Table['columns'].keys()}
         entries = Table['entries']
         indexes = Table['indexes']
         references = Table['references']
@@ -137,7 +137,7 @@ class Database:
 
     def _clearindex(self, table, rows=Result(), columns=[]):
         Table = self.tables[table]
-        columns = {column: Table['columns'][column] for column in columns} or Table['columns']
+        columns = {column: Table['columns'][column]['offset'] for column in columns} or Table['columns']
         entries = Table['entries']
         indexes = Table['indexes']
 
@@ -195,6 +195,17 @@ class Database:
 
             return query.process(results, table, self)
 
+    def _validate(self, table, column, data):
+        Table = self.tables[table]
+
+        type = Table['columns'][column]['type']
+        valid = type.check(data)
+
+        if valid:
+            return type.cast(data)
+        else:
+            raise Exception
+
     def create(self, table=None, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
         with self.lock:
             table = table or self.primarytable
@@ -207,7 +218,7 @@ class Database:
 
             self.backups.append(undo)
 
-            references = {column: {} for column in columns}
+            references = {column[0] if type(column) == tuple else column: {} for column in columns}
             columns = {
                 column[0] if type(column) == tuple else column: {
                     'offset': offset,
@@ -215,21 +226,27 @@ class Database:
                 }
                 for offset, column in enumerate(columns)
             }
-            entries = {(index + 1): entry for index, entry in enumerate(entries)}
-            count = len(entries)
 
             self.tables[table] = {
                 'columns': columns,
-                'entries': entries,
+                'entries': {},
                 'references': references,
                 'indexes': {},
-                'count': count,
-                'nextindex': count + 1,
+                'count': 0,
+                'nextindex': 1,
                 'primarykey': primarykey
             }
 
             if primary or not self.primarytable:
                 self.primarytable = table
+
+            Table = self.tables[table]
+
+            entries = {(index + 1): entry for index, entry in enumerate(entries)}
+
+            Table['entries'].update(entries)
+            Table['count'] += len(entries)
+            Table['nextindex'] += len(entries)
 
             self._buildindex(table)
 
@@ -277,13 +294,13 @@ class Database:
             else:
                 rows = self._selector(table, rows)
     
-            columns = {column: Table['columns'][column] for column in record}
+            columns = {column: Table['columns'][column]['offset'] for column in record}
 
             oldvalues = {}
 
             for column in record:
                 oldvalues[column] = {}
-                offset = Table['columns'][column]
+                offset = Table['columns'][column]['offset']
 
                 for index in rows:
                     oldvalues[column][index] = copy.copy(Table['entries'][index])[offset]
@@ -292,7 +309,7 @@ class Database:
                 self._clearindex(table, Result(rows, self), columns)
 
                 for column in oldvalues:
-                    offset = Table['columns'][column]
+                    offset = Table['columns'][column]['offset']
 
                     for index in rows:
                         Table['entries'][index][offset] = oldvalues[column][index]
@@ -304,13 +321,13 @@ class Database:
             self._clearindex(table, Result(rows, self), columns)
 
             for column, value in record.items():
-                offset = Table['columns'][column]
+                offset = Table['columns'][column]['offset']
 
                 for index in rows:
                     if not isinstance(value, Idiom):
-                        Table['entries'][index][offset] = value
+                        Table['entries'][index][offset] = self._validate(table, column, value)
                     else:
-                        Table['entries'][index][offset] = value.decode(locals())
+                        Table['entries'][index][offset] = self._validate(table, column, value.decode(locals()))
 
             # There is a big exception handling problem across Database class!
             # Changes should be tracked along processes, so actions (such as reversals/undoing, reproting etc)
