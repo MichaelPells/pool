@@ -261,7 +261,7 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # print(db.tables["Table1"]["indexes"]["phone"]["Female"])
 
 
-db.update("Table1", {"id": 200}, record={"id": 200})
+db.update("Table1", {"id": 200}, record={"id": "200"})
 result = db.read("Table1", {"id": 200})
 print(result.count)
 print(result.get(row=0, column="id"))

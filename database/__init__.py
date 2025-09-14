@@ -5,6 +5,7 @@ from database.datatypes import *
 from database.variables import *
 from database.idioms import *
 from database.operators import *
+from database.errors import *
 
 class Result:
     def __init__(self, rows=[], database=None):
@@ -194,6 +195,14 @@ class Database:
                     results.append(self._selector(table, operand))
 
             return query.process(results, table, self)
+        
+    def _identify(self, table, index):
+        Table = self.tables[table]
+
+        primarykey = Table['primarykey']
+        offset = Table['columns'][primarykey]['offset']
+
+        return Table['entries'][index][offset]
 
     def _validate(self, table, column, data):
         Table = self.tables[table]
@@ -204,7 +213,7 @@ class Database:
         if valid:
             return type.cast(data)
         else:
-            raise Exception
+            raise IncompatibleTypesError(f'{data} is not of {column} type - {type.__name__}')
 
     def create(self, table=None, columns=[], entries=[], primarykey=None, primary=False): # What happens when entries contain dependent variables?
         with self.lock:
@@ -324,10 +333,14 @@ class Database:
                 offset = Table['columns'][column]['offset']
 
                 for index in rows:
-                    if not isinstance(value, Idiom):
-                        Table['entries'][index][offset] = self._validate(table, column, value)
-                    else:
-                        Table['entries'][index][offset] = self._validate(table, column, value.decode(locals()))
+                    try:
+                        if not isinstance(value, Idiom):
+                            Table['entries'][index][offset] = self._validate(table, column, value)
+                        else:
+                            Table['entries'][index][offset] = self._validate(table, column, value.decode(locals()))
+                    except IncompatibleTypesError as e:
+                        e.args = (f'{column} cannot be updated for entry {self._identify(table, index)}. {e}',)
+                        raise
 
             # There is a big exception handling problem across Database class!
             # Changes should be tracked along processes, so actions (such as reversals/undoing, reproting etc)
