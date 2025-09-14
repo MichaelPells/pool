@@ -256,9 +256,13 @@ class Database:
             for index, entry in entries.items():
                 for column in Table['columns']:
                     offset = Table['columns'][column]['offset']
+                    value = entry[offset]
 
                     try:
-                        entry[offset] = self._validate(table, column, entry[offset])
+                        if not isinstance(value, Idiom):
+                            entry[offset] = self._validate(table, column, value)
+                        else:
+                            entry[offset] = self._validate(table, column, value.decode(locals()))
                     except IncompatibleTypesError as e:
                         e.args = (f'{column} on row {index} cannot be entered. {e}',)
                         raise
@@ -377,9 +381,13 @@ class Database:
             for index, entry in entries.items():
                 for column in Table['columns']:
                     offset = Table['columns'][column]['offset']
+                    value = entry[offset]
 
                     try:
-                        entry[offset] = self._validate(table, column, entry[offset])
+                        if not isinstance(value, Idiom):
+                            entry[offset] = self._validate(table, column, value)
+                        else:
+                            entry[offset] = self._validate(table, column, value.decode(locals()))
                     except IncompatibleTypesError as e:
                         e.args = (f'{column} on row {index} cannot be entered. {e}',)
                         raise
