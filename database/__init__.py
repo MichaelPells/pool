@@ -253,6 +253,16 @@ class Database:
 
             entries = {(index + 1): entry for index, entry in enumerate(entries)}
 
+            for index, entry in entries.items():
+                for column in Table['columns']:
+                    offset = Table['columns'][column]['offset']
+
+                    try:
+                        entry[offset] = self._validate(table, column, entry[offset])
+                    except IncompatibleTypesError as e:
+                        e.args = (f'{column} on row {index} cannot be entered. {e}',)
+                        raise
+
             Table['entries'].update(entries)
             Table['count'] += len(entries)
             Table['nextindex'] += len(entries)
@@ -363,6 +373,16 @@ class Database:
             stop = start + len(entries)
             rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
+
+            for index, entry in entries.items():
+                for column in Table['columns']:
+                    offset = Table['columns'][column]['offset']
+
+                    try:
+                        entry[offset] = self._validate(table, column, entry[offset])
+                    except IncompatibleTypesError as e:
+                        e.args = (f'{column} on row {index} cannot be entered. {e}',)
+                        raise
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)

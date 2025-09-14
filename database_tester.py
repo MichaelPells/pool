@@ -174,7 +174,7 @@
 from database import *
 
 db =  Database()
-columns = [("id", Number), "email", "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]
+columns = [("id", Number), ("email", Number), "firstname", "middlename", "surname", "gender", "country", "phone", "isstudent", "school", "referrer"]
 entries = [[int(y.strip()) if y.isdigit() else (y.strip() if y.strip() else Null())
             for y in x.split(",")]
             for x in open("SampleData1.csv").read().splitlines()]
