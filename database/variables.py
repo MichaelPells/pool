@@ -14,6 +14,8 @@ __all__ = [
 
 from collections import UserList
 
+from database.errors import *
+
 class error(Exception): ...
 class null: ...
 class singleton(UserList): ...
@@ -50,6 +52,12 @@ class Var:
         #    field = self.compute()
 
         field = self.compute()
+
+        try:
+            field = self.database._validate(table, column, field)
+        except IncompatibleTypesError as e:
+            e.args = (f'{column} cannot be updated for entry {self.database._identify(table, index)}. {e}',)
+            raise
 
         self.register(field, params)
         
@@ -448,7 +456,7 @@ class Field(Var):
             key = Table['primarykey']
             index = list(Table['indexes'][key][row].keys())[0]
             entry = Table['entries'][index]
-            offset = Table['columns'][column]
+            offset = Table['columns'][column]['offset']
 
             curr = entry[offset]
         except Exception as exception:

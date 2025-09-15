@@ -104,6 +104,12 @@ class Database:
                 field = row[offset]
 
                 if not isinstance(field, Var):
+                    try:
+                        field = self._validate(table, column, field)
+                    except IncompatibleTypesError as e:
+                        e.args = (f'{column} cannot be updated for entry {self._identify(table, index)}. {e}',)
+                        raise
+
                     if field not in indexes[column]:
                         indexes[column][field] = {}
 
@@ -251,21 +257,14 @@ class Database:
 
             Table = self.tables[table]
 
-            entries = {(index + 1): entry for index, entry in enumerate(entries)}
-
-            for index, entry in entries.items():
+            for entry in entries:
                 for column in Table['columns']:
                     offset = Table['columns'][column]['offset']
-                    value = entry[offset]
 
-                    try:
-                        if not isinstance(value, Idiom):
-                            entry[offset] = self._validate(table, column, value)
-                        else:
-                            entry[offset] = self._validate(table, column, value.decode(locals()))
-                    except IncompatibleTypesError as e:
-                        e.args = (f'{column} on row {index} cannot be entered. {e}',)
-                        raise
+                    if isinstance(entry[offset], Idiom):
+                        entry[offset] = entry[offset].decode(locals())
+
+            entries = {(index + 1): entry for index, entry in enumerate(entries)}
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)
@@ -347,14 +346,10 @@ class Database:
                 offset = Table['columns'][column]['offset']
 
                 for index in rows:
-                    try:
-                        if not isinstance(value, Idiom):
-                            Table['entries'][index][offset] = self._validate(table, column, value)
-                        else:
-                            Table['entries'][index][offset] = self._validate(table, column, value.decode(locals()))
-                    except IncompatibleTypesError as e:
-                        e.args = (f'{column} cannot be updated for entry {self._identify(table, index)}. {e}',)
-                        raise
+                    if not isinstance(value, Idiom):
+                        Table['entries'][index][offset] = value
+                    else:
+                        Table['entries'][index][offset] = value.decode(locals())
 
             # There is a big exception handling problem across Database class!
             # Changes should be tracked along processes, so actions (such as reversals/undoing, reproting etc)
@@ -363,9 +358,9 @@ class Database:
             try:
                 self._buildindex(table, Result(rows, self), columns)
             except Exception:
-                self.undo()
+                # self.undo()
 
-                # raise
+                raise
 
     def insert(self, table=None, entries=[]):
         with self.lock:
@@ -373,24 +368,17 @@ class Database:
 
             Table = self.tables[table]
 
+            for entry in entries:
+                for column in Table['columns']:
+                    offset = Table['columns'][column]['offset']
+
+                    if isinstance(entry[offset], Idiom):
+                        entry[offset] = entry[offset].decode(locals())
+
             start = Table['nextindex']
             stop = start + len(entries)
             rows = range(start, stop)
             entries = {(start + index): entry for index, entry in enumerate(entries)}
-
-            for index, entry in entries.items():
-                for column in Table['columns']:
-                    offset = Table['columns'][column]['offset']
-                    value = entry[offset]
-
-                    try:
-                        if not isinstance(value, Idiom):
-                            entry[offset] = self._validate(table, column, value)
-                        else:
-                            entry[offset] = self._validate(table, column, value.decode(locals()))
-                    except IncompatibleTypesError as e:
-                        e.args = (f'{column} on row {index} cannot be entered. {e}',)
-                        raise
 
             Table['entries'].update(entries)
             Table['count'] += len(entries)
