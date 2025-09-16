@@ -126,7 +126,10 @@ class Database:
 
                     for col, rs in list(cols.items()):
                         self._clearindex(table, Result(rs, self), [col])
-                        self._buildindex(table, Result(rs, self), [col])
+                        try:
+                            self._buildindex(table, Result(rs, self), [col])
+                        except IncompatibleTypesError as e:
+                            raise InapplicableValueError(e) # Refine error message
 
                 if '*' in references[column]:
                     if column not in wildcardcolumns:
