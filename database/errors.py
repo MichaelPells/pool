@@ -3,3 +3,6 @@ class IncompatibleTypesError(TypeError):
 
 class InapplicableValueError(ValueError):
     ...
+
+class CyclicReferencingError(ValueError):
+    ...
