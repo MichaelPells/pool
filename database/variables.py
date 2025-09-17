@@ -56,8 +56,7 @@ class Var:
         try:
             field = self.database._validate(table, column, field)
         except IncompatibleTypesError as e:
-            e.args = (f'{column} cannot be updated for entry {self.database._identify(table, index)}. {e}',)
-            raise
+            raise IncompatibleTypesError((index, column) + e.args)
 
         self.register(field, params)
         

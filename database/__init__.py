@@ -107,8 +107,7 @@ class Database:
                     try:
                         field = self._validate(table, column, field)
                     except IncompatibleTypesError as e:
-                        e.args = (f'{column} cannot be updated for entry {self._identify(table, index)}. {e}',)
-                        raise
+                        raise IncompatibleTypesError((index, column) + e.args)
 
                     if field not in indexes[column]:
                         indexes[column][field] = {}
@@ -129,7 +128,9 @@ class Database:
                         try:
                             self._buildindex(table, Result(rs, self), [col])
                         except IncompatibleTypesError as e:
-                            raise InapplicableValueError(e) # Refine error message
+                            raise InapplicableValueError((index, column) + e.args[0])
+                        except InapplicableValueError as e:
+                            raise InapplicableValueError((index, column, e.args[0][2], e.args[0][3], e.args[0][4]))
 
                 if '*' in references[column]:
                     if column not in wildcardcolumns:
@@ -360,9 +361,12 @@ class Database:
             # To begin this diagnosis, try replicating a cyclic referencing.
             try:
                 self._buildindex(table, Result(rows, self), columns)
-            except Exception:
+            except IncompatibleTypesError as e:
                 # self.undo()
-
+                e.args = (f'{e.args[0][1]} cannot be updated for entry {self._identify(table, e.args[0][0])}. {e.args[0][2]}',)
+                raise
+            except InapplicableValueError as e:
+                e.args = (f'{e.args[0][1]} cannot be updated for entry {self._identify(table, e.args[0][0])}. Results in IncompatibleTypesError for {e.args[0][3]} for entry {self._identify(table, e.args[0][2])}. {e.args[0][4]}',)
                 raise
 
     def insert(self, table=None, entries=[]):
