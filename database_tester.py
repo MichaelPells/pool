@@ -261,9 +261,14 @@ db.create("Table1", columns=columns, entries=entries, primarykey="id")
 # print(db.tables["Table1"]["indexes"]["phone"]["Female"])
 
 db.update("Table1", {"id": 300}, record={"phone": 1})
-db.update("Table1", {"id": 200}, record={"id": Field(300, "phone")})
+db.update("Table1", {"id": 400}, record={"phone": Field(300, "phone")})
+db.update("Table1", {"id": 200}, record={"id": Field(400, "phone")})
 db.update("Table1", {"id": 300}, record={"phone": "1"})
 result = db.read("Table1", {"id": 1})
 print(result.count)
 print(result.get(row=0, column="id"))
 print(result.count)
+
+# Issues:
+# id is first cleared during update. Leads to KeyError when id is to be changed
+# Cyclic in the above setup???

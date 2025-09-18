@@ -107,13 +107,14 @@ class Database:
                     try:
                         field = self._validate(table, column, field)
                     except IncompatibleTypesError as e:
-                        raise IncompatibleTypesError((index, column) + e.args)
+                        raise IncompatibleTypesError((index, column, e.args[0]))
 
                     if field not in indexes[column]:
                         indexes[column][field] = {}
 
                     indexes[column][field][index] = index
                 else:
+                    print(index)
                     field.index(self, table, Params(indexes=indexes, column=column, index=index))
 
                     if field.references:
@@ -128,7 +129,7 @@ class Database:
                         try:
                             self._buildindex(table, Result(rs, self), [col])
                         except IncompatibleTypesError as e:
-                            raise InapplicableValueError((index, column) + e.args[0])
+                            raise InapplicableValueError((index, column, e.args[0][0], e.args[0][1], e.args[0][2]))
                         except InapplicableValueError as e:
                             raise InapplicableValueError((index, column, e.args[0][2], e.args[0][3], e.args[0][4]))
 

@@ -56,7 +56,7 @@ class Var:
         try:
             field = self.database._validate(table, column, field)
         except IncompatibleTypesError as e:
-            raise IncompatibleTypesError((index, column) + e.args)
+            raise IncompatibleTypesError((index, column, e.args[0]))
 
         self.register(field, params)
         
